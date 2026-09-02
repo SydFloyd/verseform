@@ -1,0 +1,26 @@
+# JavaScript
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Rust and Tauri
+target/
+src-tauri/target/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and scratch work
+*.log
+work/
+
+# OS and editor state
+.DS_Store
+Thumbs.db
+.idea/
+*.user
+*.suo
