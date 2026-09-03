@@ -24,6 +24,7 @@ function decorationsForBlock(
   node: ProseMirrorNode,
   position: number,
   canon: CanonMetadata,
+  endOfBlockDelimited = false,
 ): Decoration[] {
   const excluded: TextRange[] = [];
   node.descendants((child, offset) => {
@@ -35,7 +36,8 @@ function decorationsForBlock(
 
   const contentStart = position + 1;
   const blockText = node.textBetween(0, node.content.size, "\n", "\n");
-  return scanReferences(blockText, excluded, canon).map((candidate) => {
+  const scanText = endOfBlockDelimited ? `${blockText}\n` : blockText;
+  return scanReferences(scanText, excluded, canon).map((candidate) => {
     const positioned: PositionedReference = {
       ...candidate,
       from: contentStart + candidate.from,
@@ -60,11 +62,24 @@ function decorationsForBlock(
   });
 }
 
-function documentDecorations(doc: ProseMirrorNode, canon: CanonMetadata): DecorationSet {
-  const decorations: Decoration[] = [];
+function lastTextblockPosition(doc: ProseMirrorNode): number {
+  let last = -1;
   doc.descendants((node, position) => {
     if (node.isTextblock) {
-      decorations.push(...decorationsForBlock(node, position, canon));
+      last = position;
+      return false;
+    }
+    return true;
+  });
+  return last;
+}
+
+function documentDecorations(doc: ProseMirrorNode, canon: CanonMetadata): DecorationSet {
+  const decorations: Decoration[] = [];
+  const lastBlock = lastTextblockPosition(doc);
+  doc.descendants((node, position) => {
+    if (node.isTextblock) {
+      decorations.push(...decorationsForBlock(node, position, canon, position !== lastBlock));
       return false;
     }
     return true;
@@ -101,10 +116,11 @@ function updateDecorations(
 ): DecorationSet {
   let updated = current.map(transaction.mapping, doc);
   const blocks = changedBlocks(transaction, doc);
+  const lastBlock = lastTextblockPosition(doc);
   if (!blocks.size) return documentDecorations(doc, canon);
   for (const [position, node] of blocks) {
     updated = updated.remove(updated.find(position, position + node.nodeSize));
-    updated = updated.add(doc, decorationsForBlock(node, position, canon));
+    updated = updated.add(doc, decorationsForBlock(node, position, canon, position !== lastBlock));
   }
   return updated;
 }

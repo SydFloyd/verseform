@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseMenuItem } from "./menu-helpers";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -29,8 +30,11 @@ test("formats with keyboard and toolbar controls, then preserves formatting on r
   page.once("dialog", (dialog) => dialog.accept("https://example.com"));
   await page.getByTitle("Add or edit link").click();
   await page.getByTitle("Align center").click();
+  await chooseMenuItem(page, "Edit", /^Paragraph/);
   await page.getByLabel("Line spacing").selectOption("2");
-  await page.getByLabel("Paragraph spacing").selectOption("8,8");
+  await page.getByLabel("Space before").selectOption("8");
+  await page.getByLabel("Space after").selectOption("8");
+  await page.getByRole("button", { name: "Apply" }).click();
   await page.getByTitle("Indent").click();
 
   const paragraph = editor.locator("p");
@@ -44,13 +48,13 @@ test("formats with keyboard and toolbar controls, then preserves formatting on r
 
   await page.keyboard.press("Control+s");
   await expect(page.getByRole("status")).toContainText("Saved Untitled.verseform");
-  await page.getByRole("button", { name: "New" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+o");
   await expect(editor.locator("strong")).toHaveText("Bold");
   await expect(editor.locator("a")).toHaveAttribute("href", "https://example.com");
   await expect(editor.locator("p")).toHaveAttribute("data-indent", "1");
 
-  await page.getByRole("button", { name: "Print" }).click();
+  await page.keyboard.press("Control+p");
   const frame = page.frameLocator('iframe[title="Print/PDF preview"]');
   await expect(frame.locator("strong").first()).toHaveText("Bold");
   await expect(frame.locator("a").first()).toHaveAttribute("href", "https://example.com");
@@ -69,7 +73,7 @@ test("find/replace and clean paste keep only safe writing markup", async ({ page
   await expect(editor).toHaveText("mercy mercy truth");
   await expect(page.getByRole("status")).toContainText("Replaced 2 occurrences");
 
-  await page.getByRole("button", { name: "New" }).click();
+  await page.keyboard.press("Control+n");
   await page.getByRole("dialog").getByRole("button", { name: "Discard" }).click();
   await editor.click();
   await editor.evaluate((element) => {
@@ -97,12 +101,12 @@ test("recovery survives restart, dirty actions are guarded, and existing files a
   await page.getByRole("button", { name: "Restore" }).click();
   await expect(editor).toHaveText("Accepted work before a restart");
 
-  await page.getByRole("button", { name: "New" }).click();
+  await page.keyboard.press("Control+n");
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
   await expect(editor).toHaveText("Accepted work before a restart");
 
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.keyboard.press("Control+s");
   await editor.click();
   await page.keyboard.press("End");
   await page.keyboard.type(" plus autosaved work");
@@ -110,7 +114,7 @@ test("recovery survives restart, dirty actions are guarded, and existing files a
   await expect(page.getByLabel("Current document")).toContainText("Saved locally");
 
   await page.reload();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page.keyboard.press("Control+o");
   await expect(editor).toHaveText("Accepted work before a restart plus autosaved work");
   await expect(page.getByLabel("Recent files")).toContainText("Recovered.verseform");
 });

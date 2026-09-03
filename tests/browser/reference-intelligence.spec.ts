@@ -48,10 +48,10 @@ test("distinguishes valid, fuzzy, ranged, and invalid references without network
   expect(await page.evaluate(() => (window as typeof window & { __providerRequests?: number }).__providerRequests)).toBe(0);
 
   await valid.nth(1).hover();
-  await expect(warning).toContainText("Love is patient and is kind");
+  await expect(warning).toContainText("DBS test verse 4 for 1CO");
   await valid.nth(1).click();
-  await expect(editor).toContainText("Love is patient and is kind");
-  await expect(page.locator(".scripture-citation")).toHaveText("(1 Corinthians 13:4-7, WEB)");
+  await expect(editor).toContainText("DBS test verse 4 for 1CO");
+  await expect(page.locator(".scripture-citation")).toHaveText("(1 Corinthians 13:4-7, NASB)");
   await expect(page.locator(".scripture-reference")).toHaveCount(1);
   expect(await page.evaluate(() => (window as typeof window & { __providerRequests?: number }).__providerRequests)).toBeGreaterThanOrEqual(2);
   expect(await page.evaluate(() => (window as typeof window & { __referenceNetworkCalls?: number }).__referenceNetworkCalls)).toBe(0);
@@ -71,7 +71,7 @@ test("keeps previews inside the viewport and supports keyboard insertion", async
   await reference.scrollIntoViewIfNeeded();
   await reference.hover();
   const tooltip = page.getByRole("tooltip");
-  await expect(tooltip).toContainText("For God so loved the world");
+  await expect(tooltip).toContainText("DBS test verse 16 for JHN");
   const box = await tooltip.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -81,6 +81,6 @@ test("keeps previews inside the viewport and supports keyboard insertion", async
 
   await reference.focus();
   await reference.press("Enter");
-  await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
+  await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, NASB)");
   await expect(page.locator(".scripture-reference")).toHaveCount(0);
 });

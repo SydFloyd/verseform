@@ -39,10 +39,16 @@ class BrowserDbsTransport implements DbsTransport {
     if (signal?.aborted) throw new DOMException("Catalog request cancelled.", "AbortError");
     window.dispatchEvent(new CustomEvent("verseform:catalog-request"));
     if (this.mode === "offline") throw new Error("DBS is unavailable while this device is offline.");
-    return { body: JSON.stringify([{
-      abbr: "ENGTEST", title: "DBS Test Bible", title_vernacular: "DBS Test Bible",
-      iso: "eng", script: "Latn", year: "2026", copyright: "DBS test fixture — not production scripture.",
-    }]) };
+    return { body: JSON.stringify([
+      {
+        abbr: "ENGNASB", title: "New American Standard Bible", title_vernacular: "New American Standard Bible",
+        iso: "eng", script: "Latn", year: "1995", copyright: "NASB browser fixture — not production scripture.",
+      },
+      {
+        abbr: "ENGTEST", title: "DBS Test Bible", title_vernacular: "DBS Test Bible",
+        iso: "eng", script: "Latn", year: "2026", copyright: "DBS test fixture — not production scripture.",
+      },
+    ]) };
   }
 
   async getChapter(
@@ -182,6 +188,7 @@ class BrowserOutputAdapter implements OutputAdapter {
 
 class BrowserWindowAdapter implements WindowAdapter {
   async onCloseRequested(_handler: () => void) { return () => undefined; }
+  async setTitle(title: string) { document.title = title; }
   async close() {}
 }
 

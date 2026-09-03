@@ -16,7 +16,8 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
   });
   await reset(page);
   const translation = page.getByRole("combobox", { name: "Scripture translation" });
-  await expect(translation.locator("option")).toHaveCount(2);
+  await expect(translation.locator("option")).toHaveCount(3);
+  await expect(translation).toHaveValue("ENGNASB");
   await translation.selectOption("ENGTEST");
   await expect(page.getByRole("status")).toContainText("DBS Test Bible selected");
 
@@ -33,7 +34,7 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
   await expect(citation).toHaveAttribute("data-attribution", /DBS test fixture/);
   expect(await page.evaluate(() => (window as typeof window & { __dbsNetworkRequests?: number }).__dbsNetworkRequests)).toBe(1);
 
-  await page.getByRole("button", { name: "Print" }).click();
+  await page.keyboard.press("Control+p");
   await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
     .toContainText("DBS test fixture — not production scripture.");
 
@@ -70,6 +71,9 @@ test("a failed DBS passage visibly falls back and can only insert as WEB", async
   await reference.click();
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
   await expect(page.locator('[data-translation="ENGTEST"]')).toHaveCount(0);
+
+  await page.reload();
+  await expect(translation).toHaveValue("ENGTEST");
 });
 
 test("cancels an abandoned DBS preview without changing the document", async ({ page }) => {

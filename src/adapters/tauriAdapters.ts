@@ -76,6 +76,7 @@ class TauriWindowAdapter implements WindowAdapter {
   async onCloseRequested(handler: () => void) {
     return getCurrentWindow().onCloseRequested((event) => { event.preventDefault(); handler(); });
   }
+  async setTitle(title: string) { await getCurrentWindow().setTitle(title); }
   async close() { await getCurrentWindow().destroy(); }
 }
 

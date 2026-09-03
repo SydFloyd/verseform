@@ -73,6 +73,7 @@ export type RecoverySnapshot = {
 
 export interface WindowAdapter {
   onCloseRequested(handler: () => void): Promise<() => void>;
+  setTitle(title: string): Promise<void>;
   close(): Promise<void>;
 }
 

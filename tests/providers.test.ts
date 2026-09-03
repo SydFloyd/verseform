@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScriptureProvider } from "../src/app/ports";
+import { selectInitialTranslation } from "../src/app/translationSelection";
 import { WEB_CANON } from "../src/core/canon";
 import type { NormalizedReference } from "../src/core/reference";
 import {
@@ -75,6 +76,27 @@ describe("scripture provider contract", () => {
     expect(passage.citationLabel).toBe("TEST");
     expect(passage.attribution).toContain("Fixture copyright notice.");
     expect(transport.chapterCalls).toBe(1);
+  });
+});
+
+describe("startup translation policy", () => {
+  const translations = parseDbsCatalog(JSON.stringify([
+    { abbr: "ENGOTHER", title: "Another Bible" },
+    { abbr: "ENGNASB", title: "New American Standard Bible" },
+  ]));
+  const available = [{
+    id: "WEB", citationLabel: "WEB", name: "World English Bible",
+    attribution: "Public domain", source: "bundled" as const, canon: WEB_CANON,
+  }, ...translations];
+
+  it("prefers NASB online for a first session but preserves an explicit preference", () => {
+    expect(selectInitialTranslation(available)?.id).toBe("ENGNASB");
+    expect(selectInitialTranslation(available, "WEB")?.id).toBe("WEB");
+    expect(selectInitialTranslation(available, "ENGOTHER")?.id).toBe("ENGOTHER");
+  });
+
+  it("uses bundled WEB when it is the only offline translation", () => {
+    expect(selectInitialTranslation(available.slice(0, 1))?.id).toBe("WEB");
   });
 });
 

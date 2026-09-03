@@ -26,13 +26,14 @@ The editor must provide:
 - Line spacing and paragraph spacing before and after.
 - Hyperlinks.
 - Undo/redo, find/replace, spellcheck, clean paste, and common keyboard shortcuts.
+- File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested.
 - Accessible controls, visible focus states, and keyboard operation for core actions.
 
 The editor will not initially include editable headers or footers, margin controls, or DOCX support.
 
 ## Scripture detection and insertion
 
-1. Detection runs after the user types a delimiter such as a space or punctuation mark, not while a word is being entered.
+1. Detection runs after the user types a delimiter such as a space, punctuation mark, or paragraph break, not while a word is being entered.
 2. A valid reference receives subtle special formatting that communicates it is interactive.
 3. Common book-name abbreviations and plausible misspellings may match fuzzily. Chapter and verse numbers must resolve to a valid passage.
 4. A recognizable but invalid reference receives distinct warning styling. Its hover card explains the problem and does not offer insertion.
@@ -41,7 +42,7 @@ The editor will not initially include editable headers or footers, margin contro
 7. Inserted citations are semantically marked and excluded from future reference detection. They remain editable by the user.
 8. Verse ranges must be supported when the referenced range is valid.
 
-Available authorized translations are loaded from DBS. The user's preferred translation is stored in a local device profile and used by default across documents. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations.
+Available authorized translations are loaded from DBS. The user's preferred translation is stored in a local device profile and used by default across documents. On a first online session with no saved preference, NASB is preferred when the DBS catalog offers it. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations; that temporary fallback does not overwrite the saved preference.
 
 ## Documents and recovery
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseMenuItem, togglePageNumbers } from "./menu-helpers";
 
 test("walks from a detected reference through attributed PDF output", async ({
   page,
@@ -14,13 +15,13 @@ test("walks from a detected reference through attributed PDF output", async ({
   await expect(reference).toHaveText("John 3:16");
   await reference.hover();
   const preview = page.getByRole("tooltip");
-  await expect(preview).toContainText("For God so loved the world");
-  await expect(preview).toContainText("World English Bible");
+  await expect(preview).toContainText("DBS test verse 16 for JHN");
+  await expect(preview).toContainText("New American Standard Bible");
 
   await reference.click();
-  await expect(editor).toContainText("For God so loved the world");
+  await expect(editor).toContainText("DBS test verse 16 for JHN");
   await expect(page.locator(".scripture-citation")).toHaveText(
-    "(John 3:16, WEB)",
+    "(John 3:16, NASB)",
   );
   await expect(page.locator(".scripture-reference")).toHaveCount(0);
 
@@ -30,21 +31,21 @@ test("walks from a detected reference through attributed PDF output", async ({
 
   await editor.press("Control+Shift+z");
   await expect(page.locator(".scripture-citation")).toHaveText(
-    "(John 3:16, WEB)",
+    "(John 3:16, NASB)",
   );
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.keyboard.press("Control+s");
   await expect(page.getByRole("status")).toContainText(
     "Saved Untitled.verseform",
   );
-  await page.getByRole("button", { name: "New" }).click();
+  await page.keyboard.press("Control+n");
   await expect(editor).toHaveText("");
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page.keyboard.press("Control+o");
   await expect(page.getByRole("status")).toContainText(
     "Opened Untitled.verseform",
   );
-  await expect(editor).toContainText("For God so loved the world");
+  await expect(editor).toContainText("DBS test verse 16 for JHN");
   await expect(page.locator(".scripture-citation")).toHaveText(
-    "(John 3:16, WEB)",
+    "(John 3:16, NASB)",
   );
   await expect(page.locator(".scripture-reference")).toHaveCount(0);
 
@@ -53,13 +54,13 @@ test("walks from a detected reference through attributed PDF output", async ({
   await page.keyboard.type("x");
   await expect(reopenedCitation).toContainText("x");
   await editor.press("Control+z");
-  await expect(reopenedCitation).toHaveText("(John 3:16, WEB)");
+  await expect(reopenedCitation).toHaveText("(John 3:16, NASB)");
 
-  await page.getByRole("checkbox", { name: "Page numbers" }).check();
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await togglePageNumbers(page);
+  await chooseMenuItem(page, "File", /^Save PDF$/);
   const printFrame = page.frameLocator('iframe[title="Print/PDF preview"]');
   await expect(printFrame.locator("body")).toContainText("Powered by DBS");
-  await expect(printFrame.locator("body")).toContainText("World English Bible");
+  await expect(printFrame.locator("body")).toContainText("NASB browser fixture");
   await expect(printFrame.locator("body")).toContainText("Page 1");
 
   const pdf = await page.pdf({

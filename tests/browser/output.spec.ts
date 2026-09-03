@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { chooseMenuItem, togglePageNumbers } from "./menu-helpers";
 
 declare global {
   interface Window {
@@ -30,8 +31,8 @@ test("freezes output settings and preserves the document when Save PDF is cancel
   await page.goto("/?pdf=cancel");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("Writing that must survive a canceled export.");
-  await page.getByRole("checkbox", { name: "Page numbers" }).check();
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await togglePageNumbers(page);
+  await chooseMenuItem(page, "File", /^Save PDF$/);
 
   await expect(page.getByRole("status")).toContainText("PDF export canceled");
   await expect(editor).toHaveText("Writing that must survive a canceled export.");
@@ -44,7 +45,7 @@ test("reports an unwritable PDF destination without changing open writing", asyn
   await page.goto("/?pdf=error");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("Keep this exact writing after output failure.");
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await chooseMenuItem(page, "File", /^Save PDF$/);
 
   await expect(page.getByRole("status")).toContainText("selected PDF destination is not writable");
   await expect(editor).toHaveText("Keep this exact writing after output failure.");
@@ -61,7 +62,7 @@ test("offline output makes no scripture-provider request", async ({ page }) => {
   await page.goto("/?dbs=offline");
   await page.getByRole("textbox", { name: "Document editor" })
     .fill("This output is available with no provider connection.");
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await chooseMenuItem(page, "File", /^Save PDF$/);
 
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
   expect(await page.evaluate(() => window.__outputProviderRequests)).toBe(0);
@@ -101,8 +102,8 @@ test("multi-page PDF contains every footer, notice, and optional page number", a
     }));
   });
 
-  await page.getByRole("checkbox", { name: "Page numbers" }).check();
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await togglePageNumbers(page);
+  await chooseMenuItem(page, "File", /^Save PDF$/);
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
 
   const pdf = await page.pdf({

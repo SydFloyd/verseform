@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { chooseMenuItem } from "./menu-helpers";
 
 async function reset(page: import("@playwright/test").Page, url = "/") {
   await page.goto(url);
@@ -31,13 +32,13 @@ test("keyboard users can skip controls, close previews, and stay inside confirma
   await reference.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Find / Replace" }).click();
+  await page.keyboard.press("Control+f");
   await expect(page.getByLabel("Find", { exact: true })).toBeFocused();
   await page.getByRole("button", { name: "Close find and replace" }).click();
   await expect(editor).toBeFocused();
 
-  const newButton = page.getByRole("button", { name: "New" });
-  await newButton.click();
+  const fileButton = page.getByRole("button", { name: "File", exact: true });
+  await chooseMenuItem(page, "File", /^New\b/);
   const dialog = page.getByRole("dialog", { name: "Save changes?" });
   const cancel = dialog.getByRole("button", { name: "Cancel" });
   const save = dialog.getByRole("button", { name: "Save" });
@@ -48,7 +49,7 @@ test("keyboard users can skip controls, close previews, and stay inside confirma
   await expect(cancel).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(newButton).toBeFocused();
+  await expect(fileButton).toBeFocused();
 });
 
 test("rejects a document-sized paste without losing accepted writing", async ({ page }) => {
@@ -72,7 +73,7 @@ test("a full destination keeps unsaved writing recoverable", async ({ page }) =>
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("Writing that survives a full destination");
   await expect(page.getByRole("status")).toContainText("Recovery copy saved locally");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.keyboard.press("Control+s");
   await expect(page.getByRole("status")).toContainText("Save failed: The destination is full or unavailable");
   await expect(page.getByLabel("Current document")).toContainText("Unsaved changes");
   await page.waitForTimeout(350);
@@ -88,13 +89,13 @@ test("offline beta flow inserts, saves, reopens, prints, and exports", async ({ 
   await editor.fill("John 3:16 ");
   await page.locator(".scripture-reference").click();
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByRole("button", { name: "New" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page.keyboard.press("Control+s");
+  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+o");
   await expect(editor).toContainText("For God so loved the world");
-  await page.getByRole("button", { name: "Print" }).click();
+  await page.keyboard.press("Control+p");
   await expect(page.getByRole("status")).toContainText("Windows print dialog opened");
-  await page.getByRole("button", { name: "Save PDF" }).click();
+  await chooseMenuItem(page, "File", /^Save PDF$/);
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
   await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
     .toContainText("Powered by DBS");

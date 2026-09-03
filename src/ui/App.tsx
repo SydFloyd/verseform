@@ -3,10 +3,11 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import type { Editor } from "@tiptap/core";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OpenedDocument, Passage, RecentDocument, RecoverySnapshot, Translation } from "../app/ports";
+import { selectInitialTranslation } from "../app/translationSelection";
 import { createRuntimeAdapters } from "../adapters/runtime";
 import { WEB_TRANSLATION } from "../adapters/webScriptureProvider";
 import {
@@ -35,10 +36,15 @@ type Session = {
   document?: VerseformDocument; path?: string; displayName: string; savedHash?: string;
 };
 type PendingAction = { type: "new" | "open" | "recent" | "close"; path?: string };
+type MenuName = "file" | "edit";
+type Alignment = "left" | "center" | "right" | "justify";
+type ParagraphSettings = { lineHeight: string; spaceBefore: number; spaceAfter: number };
 
 const emptyDocument: EditorNode = { type: "doc", content: [{ type: "paragraph" }] };
 const fonts = ["Garamond", "Georgia", "Arial", "Calibri", "Times New Roman", "Verdana"];
 const sizes = ["10pt", "11pt", "12pt", "14pt", "18pt", "24pt"];
+const paragraphSpacing = [0, 6, 8, 12, 18, 24];
+const defaultParagraph: ParagraphSettings = { lineHeight: "1.5", spaceBefore: 0, spaceAfter: 0 };
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong.";
@@ -47,7 +53,144 @@ function errorMessage(error: unknown): string {
 function ToolbarButton({ editor, command, active, children, title }: {
   editor: Editor | null; command: () => void; active?: boolean; children: React.ReactNode; title: string;
 }) {
-  return <button type="button" onClick={command} aria-pressed={active} title={title}>{children}</button>;
+  return <button type="button" onClick={command} aria-label={title} aria-pressed={active} title={title}>{children}</button>;
+}
+
+function ToolbarMenu({ id, label, open, buttonRef, onToggle, children }: {
+  id: string;
+  label: string;
+  open: boolean;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
+  onToggle: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  const focusItem = (menu: HTMLElement, direction: 1 | -1, current?: Element | null) => {
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([disabled])'));
+    if (!items.length) return;
+    const currentIndex = current ? items.indexOf(current as HTMLElement) : -1;
+    const nextIndex = currentIndex < 0
+      ? direction > 0 ? 0 : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
+    items[nextIndex].focus();
+  };
+  return <div className="menu-container" onBlur={(event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) onToggle(false);
+  }}>
+    <button
+      ref={buttonRef}
+      type="button"
+      className="menu-trigger"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-controls={id}
+      onClick={() => onToggle(!open)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          event.preventDefault();
+          onToggle(false);
+          return;
+        }
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        event.preventDefault();
+        onToggle(true);
+        requestAnimationFrame(() => {
+          const menu = document.getElementById(id);
+          if (menu) focusItem(menu, event.key === "ArrowDown" ? 1 : -1);
+        });
+      }}
+    >{label}<span aria-hidden="true">⌄</span></button>
+    {open ? <div id={id} className="app-menu" role="menu" aria-label={`${label} menu`} onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onToggle(false);
+        buttonRef.current?.focus();
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        focusItem(event.currentTarget, event.key === "ArrowDown" ? 1 : -1, document.activeElement);
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        focusItem(event.currentTarget, event.key === "Home" ? 1 : -1);
+      }
+    }}>{children}</div> : null}
+  </div>;
+}
+
+function MenuItem({ children, shortcut, onClick, disabled, checked }: {
+  children: React.ReactNode;
+  shortcut?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  checked?: boolean;
+}) {
+  return <button
+    type="button"
+    role={checked === undefined ? "menuitem" : "menuitemcheckbox"}
+    aria-checked={checked}
+    aria-keyshortcuts={shortcut?.replace("Ctrl", "Control")}
+    disabled={disabled}
+    onClick={onClick}
+  ><span>{children}</span>{shortcut ? <kbd>{shortcut}</kbd> : null}</button>;
+}
+
+function AlignmentIcon({ alignment }: { alignment: Alignment }) {
+  const widths = alignment === "justify" ? [16, 16, 16, 16] : [16, 11, 16, 12];
+  return <svg className="toolbar-icon" viewBox="0 0 20 20" aria-hidden="true">
+    {widths.map((width, index) => {
+      const x = alignment === "center" ? (20 - width) / 2 : alignment === "right" ? 18 - width : 2;
+      return <line key={index} x1={x} x2={x + width} y1={4 + index * 4} y2={4 + index * 4} />;
+    })}
+  </svg>;
+}
+
+function ListIcon({ ordered }: { ordered?: boolean }) {
+  return <svg className="toolbar-icon" viewBox="0 0 20 20" aria-hidden="true">
+    {ordered
+      ? <><text x="1.5" y="6">1</text><text x="1.5" y="12">2</text><text x="1.5" y="18">3</text></>
+      : <><circle cx="3" cy="4" r="1" /><circle cx="3" cy="10" r="1" /><circle cx="3" cy="16" r="1" /></>}
+    <line x1="7" x2="18" y1="4" y2="4" />
+    <line x1="7" x2="18" y1="10" y2="10" />
+    <line x1="7" x2="18" y1="16" y2="16" />
+  </svg>;
+}
+
+function LinkIcon() {
+  return <svg className="toolbar-icon" viewBox="0 0 20 20" aria-hidden="true">
+    <path d="M8.1 12.7 6.4 14.4a3.1 3.1 0 0 1-4.4-4.4l3-3a3.1 3.1 0 0 1 4.4 0" />
+    <path d="m11.9 7.3 1.7-1.7A3.1 3.1 0 0 1 18 10l-3 3a3.1 3.1 0 0 1-4.4 0" />
+    <line x1="7" x2="13" y1="10" y2="10" />
+  </svg>;
+}
+
+function ColorIcon({ color, highlight }: { color: string; highlight?: boolean }) {
+  return <svg className="toolbar-icon" viewBox="0 0 20 20" aria-hidden="true">
+    {highlight ? <rect x="3" y="2" width="14" height="15" rx="2" fill={color} stroke="none" /> : null}
+    <path d="M5 15 10 3l5 12M7 10h6" />
+    {!highlight ? <rect x="3" y="17" width="14" height="2" fill={color} stroke="none" /> : null}
+  </svg>;
+}
+
+function trapFocus(
+  event: React.KeyboardEvent<HTMLElement>,
+  container: HTMLElement | null,
+  onEscape: () => void,
+) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    onEscape();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const controls = Array.from(container?.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  ) ?? []);
+  if (!controls.length) return;
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault(); last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault(); first.focus();
+  }
 }
 
 export function App() {
@@ -67,6 +210,10 @@ export function App() {
   const clickHandler = useRef<(candidate: PositionedValidReference) => void>(() => undefined);
   const dialogRef = useRef<HTMLElement | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
+  const paragraphDialogRef = useRef<HTMLElement | null>(null);
+  const paragraphReturnFocus = useRef<HTMLElement | null>(null);
+  const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const editMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const statusRevision = useRef(0);
   const [preview, setPreview] = useState<PreviewState>();
   const [status, setStatusValue] = useState(runtime.kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready");
@@ -83,6 +230,9 @@ export function App() {
   const [replacement, setReplacement] = useState("");
   const [findIndex, setFindIndex] = useState(0);
   const [findCount, setFindCount] = useState(0);
+  const [openMenu, setOpenMenu] = useState<MenuName>();
+  const [paragraphOpen, setParagraphOpen] = useState(false);
+  const [paragraphDraft, setParagraphDraft] = useState<ParagraphSettings>(defaultParagraph);
   const [translations, setTranslations] = useState<Translation[]>([WEB_TRANSLATION]);
   const [translationId, setTranslationId] = useState(WEB_TRANSLATION.id);
   const [catalogOffline, setCatalogOffline] = useState(false);
@@ -178,6 +328,49 @@ export function App() {
     },
   });
 
+  const formatting = useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      const textStyle = current?.getAttributes("textStyle") ?? {};
+      const blockType = current?.isActive("heading") ? "heading" : "paragraph";
+      const block = current?.getAttributes(blockType) ?? {};
+      const alignment = (["left", "center", "right", "justify"] as Alignment[])
+        .find((value) => current?.isActive({ textAlign: value })) ?? "left";
+      return {
+        fontFamily: String(textStyle.fontFamily || "Garamond"),
+        fontSize: String(textStyle.fontSize || "12pt"),
+        color: String(textStyle.color || "#252018"),
+        backgroundColor: String(textStyle.backgroundColor || "#fff0a8"),
+        lineHeight: String(block.lineHeight || defaultParagraph.lineHeight),
+        spaceBefore: Number(block.spaceBefore ?? defaultParagraph.spaceBefore),
+        spaceAfter: Number(block.spaceAfter ?? defaultParagraph.spaceAfter),
+        alignment,
+        bold: Boolean(current?.isActive("bold")),
+        italic: Boolean(current?.isActive("italic")),
+        underline: Boolean(current?.isActive("underline")),
+        strike: Boolean(current?.isActive("strike")),
+        subscript: Boolean(current?.isActive("subscript")),
+        superscript: Boolean(current?.isActive("superscript")),
+        link: Boolean(current?.isActive("link")),
+        bulletList: Boolean(current?.isActive("bulletList")),
+        orderedList: Boolean(current?.isActive("orderedList")),
+        canUndo: Boolean(current?.can().undo()),
+        canRedo: Boolean(current?.can().redo()),
+      };
+    },
+  }) ?? {
+    fontFamily: "Garamond", fontSize: "12pt", color: "#252018", backgroundColor: "#fff0a8",
+    ...defaultParagraph, alignment: "left" as Alignment,
+    bold: false, italic: false, underline: false, strike: false,
+    subscript: false, superscript: false, link: false, bulletList: false, orderedList: false,
+    canUndo: false, canRedo: false,
+  };
+
+  useEffect(() => {
+    const windowTitle = `${displayName}${dirty ? " — Unsaved changes" : ""} — Verseform`;
+    void runtime.window.setTitle(windowTitle).catch(() => undefined);
+  }, [dirty, displayName, runtime]);
+
   useEffect(() => {
     if (!editor) return;
     void refreshRecent();
@@ -202,9 +395,7 @@ export function App() {
       const available = catalog.offline
         ? [WEB_TRANSLATION]
         : catalog.translations.length ? catalog.translations : [WEB_TRANSLATION];
-      const selected = available.find((item) => item.id === preferred)
-        ?? available.find((item) => item.id === WEB_TRANSLATION.id)
-        ?? available[0];
+      const selected = selectInitialTranslation(available, preferred) ?? WEB_TRANSLATION;
       activeTranslation.current = selected;
       setTranslations(available);
       setTranslationId(selected.id);
@@ -241,6 +432,7 @@ export function App() {
       if (!(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "f" || event.key.toLowerCase() === "h") {
         event.preventDefault();
+        setOpenMenu(undefined);
         setFindOpen(true);
         requestAnimationFrame(() => document.getElementById("find-query")?.focus());
       }
@@ -274,7 +466,6 @@ export function App() {
         setTranslationId(WEB_TRANSLATION.id);
         setCatalogOffline(true);
         refreshReferenceDecorations(editor!);
-        void runtime.preferences.setPreferredTranslation(WEB_TRANSLATION.id);
       }
       setPreview((value) => value ? { ...value, loading: false, passage } : value);
     }).catch((error: unknown) => {
@@ -301,7 +492,6 @@ export function App() {
         setTranslationId(WEB_TRANSLATION.id);
         setCatalogOffline(true);
         refreshReferenceDecorations(editor);
-        void runtime.preferences.setPreferredTranslation(WEB_TRANSLATION.id);
       }
       activeHover.current = undefined;
       setPreview(undefined);
@@ -382,10 +572,10 @@ export function App() {
     } else if (action.type === "close") await runtime.window.close();
   }, [editor, loadOpened, markDirty, refreshRecent, runtime]);
 
-  const requestAction = (action: PendingAction) => {
+  const requestAction = (action: PendingAction, returnFocus?: HTMLElement | null) => {
     if (dirtyRef.current) {
-      dialogReturnFocus.current = document.activeElement instanceof HTMLElement
-        ? document.activeElement : null;
+      dialogReturnFocus.current = returnFocus ?? (document.activeElement instanceof HTMLElement
+        ? document.activeElement : null);
       setPendingAction(action);
     } else void performAction(action);
   };
@@ -408,23 +598,7 @@ export function App() {
   };
 
   const trapDialogKeys = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      void resolvePending("cancel");
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ) ?? []);
-    if (!controls.length) return;
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault(); last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault(); first.focus();
-    }
+    trapFocus(event, dialogRef.current, () => { void resolvePending("cancel"); });
   };
 
   const freezeOutput = async (): Promise<PrintSnapshot | undefined> => {
@@ -468,6 +642,25 @@ export function App() {
     const type = editor.isActive("heading") ? "heading" : "paragraph";
     editor.chain().focus().updateAttributes(type, attributes).run();
   };
+  const closeParagraph = () => {
+    setParagraphOpen(false);
+    requestAnimationFrame(() => paragraphReturnFocus.current?.focus());
+  };
+  const openParagraph = () => {
+    paragraphReturnFocus.current = editMenuButtonRef.current;
+    setParagraphDraft({
+      lineHeight: formatting.lineHeight,
+      spaceBefore: formatting.spaceBefore,
+      spaceAfter: formatting.spaceAfter,
+    });
+    setOpenMenu(undefined);
+    setParagraphOpen(true);
+    requestAnimationFrame(() => document.getElementById("paragraph-line-spacing")?.focus());
+  };
+  const applyParagraph = () => {
+    updateBlock(paragraphDraft);
+    closeParagraph();
+  };
   const adjustIndent = (direction: 1 | -1) => {
     if (!editor) return;
     if (editor.isActive("listItem")) {
@@ -497,6 +690,11 @@ export function App() {
     setFindOpen(false);
     updateFind("");
     editor?.commands.focus();
+  };
+  const openFind = () => {
+    setOpenMenu(undefined);
+    setFindOpen(true);
+    requestAnimationFrame(() => document.getElementById("find-query")?.focus());
   };
 
   useEffect(() => {
@@ -542,9 +740,9 @@ export function App() {
       <a className="skip-link" href="#document-editor" onClick={(event) => {
         event.preventDefault(); editor?.commands.focus();
       }}>Skip to document editor</a>
-      <main className="app-shell" inert={pendingAction ? true : undefined}>
+      <main className="app-shell" inert={pendingAction || paragraphOpen ? true : undefined}>
         <header className="app-header">
-          <div><p className="eyebrow">Local-first scripture writing</p><h1>Verseform</h1></div>
+          <h1>Verseform</h1>
           <div className="document-state" aria-label="Current document">
             <strong>{displayName}</strong><span>{dirty ? "Unsaved changes" : "Saved locally"}</span>
           </div>
@@ -563,11 +761,55 @@ export function App() {
           <button type="button" onClick={() => void runtime.documents.discardRecovery(recovery.document.documentId).then(() => setRecoveries((items) => items.slice(1)))}>Discard</button>
         </section> : null}
 
-        <nav className="toolbar document-toolbar" aria-label="Document actions">
-          <button type="button" aria-keyshortcuts="Control+N" onClick={() => requestAction({ type: "new" })}>New</button>
-          <button type="button" aria-keyshortcuts="Control+O" onClick={() => requestAction({ type: "open" })}>Open</button>
-          <button type="button" aria-keyshortcuts="Control+S" onClick={() => void saveDocument()}>Save</button>
-          <button type="button" aria-keyshortcuts="Control+Shift+S" onClick={() => void saveDocument(true)}>Save As</button>
+        <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
+          <ToolbarMenu
+            id="file-menu"
+            label="File"
+            open={openMenu === "file"}
+            buttonRef={fileMenuButtonRef}
+            onToggle={(open) => setOpenMenu(open ? "file" : undefined)}
+          >
+            <MenuItem shortcut="Ctrl+N" onClick={() => {
+              setOpenMenu(undefined); requestAction({ type: "new" }, fileMenuButtonRef.current);
+            }}>New</MenuItem>
+            <MenuItem shortcut="Ctrl+O" onClick={() => {
+              setOpenMenu(undefined); requestAction({ type: "open" }, fileMenuButtonRef.current);
+            }}>Open</MenuItem>
+            <div className="menu-separator" role="separator" />
+            <MenuItem shortcut="Ctrl+S" onClick={() => {
+              setOpenMenu(undefined); void saveDocument();
+            }}>Save</MenuItem>
+            <MenuItem shortcut="Ctrl+Shift+S" onClick={() => {
+              setOpenMenu(undefined); void saveDocument(true);
+            }}>Save As</MenuItem>
+            <div className="menu-separator" role="separator" />
+            <MenuItem checked={pageNumbers} disabled={outputBusy} onClick={() => setPageNumbers((value) => !value)}>
+              Page numbers
+            </MenuItem>
+            <MenuItem shortcut="Ctrl+P" disabled={outputBusy} onClick={() => {
+              setOpenMenu(undefined); void print();
+            }}>Print</MenuItem>
+            <MenuItem disabled={outputBusy} onClick={() => {
+              setOpenMenu(undefined); void savePdf();
+            }}>Save PDF</MenuItem>
+          </ToolbarMenu>
+          <ToolbarMenu
+            id="edit-menu"
+            label="Edit"
+            open={openMenu === "edit"}
+            buttonRef={editMenuButtonRef}
+            onToggle={(open) => setOpenMenu(open ? "edit" : undefined)}
+          >
+            <MenuItem shortcut="Ctrl+Z" disabled={!formatting.canUndo} onClick={() => {
+              setOpenMenu(undefined); editor?.chain().focus().undo().run();
+            }}>Undo</MenuItem>
+            <MenuItem shortcut="Ctrl+Shift+Z" disabled={!formatting.canRedo} onClick={() => {
+              setOpenMenu(undefined); editor?.chain().focus().redo().run();
+            }}>Redo</MenuItem>
+            <div className="menu-separator" role="separator" />
+            <MenuItem shortcut="Ctrl+F" onClick={openFind}>Find / Replace</MenuItem>
+            <MenuItem onClick={openParagraph}>Paragraph…</MenuItem>
+          </ToolbarMenu>
           {recent.length ? <label className="recent-picker">Recent
             <select aria-label="Recent files" value="" onChange={(event) => requestAction({ type: "recent", path: event.target.value })}>
               <option value="">Choose…</option>{recent.map((item) => <option key={item.path} value={item.path}>{item.displayName}</option>)}
@@ -581,50 +823,35 @@ export function App() {
             </select>
           </label>
           {catalogOffline ? <span className="offline-badge" role="note">Offline · WEB</span> : null}
-          <span className="toolbar-spacer" />
-          <label className="page-number-option"><input type="checkbox" checked={pageNumbers} onChange={(event) => setPageNumbers(event.target.checked)} disabled={outputBusy} />Page numbers</label>
-          <button type="button" aria-keyshortcuts="Control+P" onClick={() => void print()} disabled={outputBusy}>Print</button>
-          <button className="primary-action" type="button" onClick={() => void savePdf()} disabled={outputBusy}>Save PDF</button>
         </nav>
 
         <nav className="toolbar formatting-toolbar" aria-label="Text formatting">
-          <ToolbarButton editor={editor} title="Bold (Ctrl+B)" active={editor?.isActive("bold")} command={() => editor?.chain().focus().toggleBold().run()}>B</ToolbarButton>
-          <ToolbarButton editor={editor} title="Italic (Ctrl+I)" active={editor?.isActive("italic")} command={() => editor?.chain().focus().toggleItalic().run()}><em>I</em></ToolbarButton>
-          <ToolbarButton editor={editor} title="Underline (Ctrl+U)" active={editor?.isActive("underline")} command={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></ToolbarButton>
-          <ToolbarButton editor={editor} title="Strikethrough" active={editor?.isActive("strike")} command={() => editor?.chain().focus().toggleStrike().run()}><s>S</s></ToolbarButton>
-          <ToolbarButton editor={editor} title="Subscript" active={editor?.isActive("subscript")} command={() => editor?.chain().focus().toggleSubscript().run()}>X₂</ToolbarButton>
-          <ToolbarButton editor={editor} title="Superscript" active={editor?.isActive("superscript")} command={() => editor?.chain().focus().toggleSuperscript().run()}>X²</ToolbarButton>
-          <select aria-label="Font family" value={editor?.getAttributes("textStyle").fontFamily ?? ""} onChange={(event) => editor?.chain().focus().setFontFamily(event.target.value).run()}>
-            <option value="">Font</option>{fonts.map((font) => <option key={font}>{font}</option>)}
+          <ToolbarButton editor={editor} title="Bold (Ctrl+B)" active={formatting.bold} command={() => editor?.chain().focus().toggleBold().run()}>B</ToolbarButton>
+          <ToolbarButton editor={editor} title="Italic (Ctrl+I)" active={formatting.italic} command={() => editor?.chain().focus().toggleItalic().run()}><em>I</em></ToolbarButton>
+          <ToolbarButton editor={editor} title="Underline (Ctrl+U)" active={formatting.underline} command={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></ToolbarButton>
+          <ToolbarButton editor={editor} title="Strikethrough" active={formatting.strike} command={() => editor?.chain().focus().toggleStrike().run()}><s>S</s></ToolbarButton>
+          <ToolbarButton editor={editor} title="Subscript" active={formatting.subscript} command={() => editor?.chain().focus().toggleSubscript().run()}>X₂</ToolbarButton>
+          <ToolbarButton editor={editor} title="Superscript" active={formatting.superscript} command={() => editor?.chain().focus().toggleSuperscript().run()}>X²</ToolbarButton>
+          <select aria-label="Font family" value={formatting.fontFamily} onChange={(event) => editor?.chain().focus().setFontFamily(event.target.value).run()}>
+            {!fonts.includes(formatting.fontFamily) ? <option value={formatting.fontFamily}>{formatting.fontFamily}</option> : null}
+            {fonts.map((font) => <option key={font}>{font}</option>)}
           </select>
-          <select aria-label="Font size" value={editor?.getAttributes("textStyle").fontSize ?? ""} onChange={(event) => editor?.chain().focus().setFontSize(event.target.value).run()}>
-            <option value="">Size</option>{sizes.map((size) => <option key={size}>{size}</option>)}
+          <select aria-label="Font size" value={formatting.fontSize} onChange={(event) => editor?.chain().focus().setFontSize(event.target.value).run()}>
+            {!sizes.includes(formatting.fontSize) ? <option value={formatting.fontSize}>{formatting.fontSize}</option> : null}
+            {sizes.map((size) => <option key={size}>{size}</option>)}
           </select>
-          <label className="color-control" title="Text color">A<input aria-label="Text color" type="color" value="#252018" onChange={(event) => editor?.chain().focus().setColor(event.target.value).run()} /></label>
-          <label className="color-control" title="Highlight color">▰<input aria-label="Highlight color" type="color" value="#fff0a8" onChange={(event) => editor?.chain().focus().setBackgroundColor(event.target.value).run()} /></label>
-          <ToolbarButton editor={editor} title="Add or edit link" active={editor?.isActive("link")} command={editLink}>Link</ToolbarButton>
-          <ToolbarButton editor={editor} title="Bullet list" active={editor?.isActive("bulletList")} command={() => editor?.chain().focus().toggleBulletList().run()}>• List</ToolbarButton>
-          <ToolbarButton editor={editor} title="Numbered list" active={editor?.isActive("orderedList")} command={() => editor?.chain().focus().toggleOrderedList().run()}>1. List</ToolbarButton>
+          <label className="color-control icon-color-control" title="Font color"><ColorIcon color={formatting.color} /><input aria-label="Text color" type="color" value={formatting.color} onChange={(event) => editor?.chain().focus().setColor(event.target.value).run()} /></label>
+          <label className="color-control icon-color-control" title="Highlight color"><ColorIcon color={formatting.backgroundColor} highlight /><input aria-label="Highlight color" type="color" value={formatting.backgroundColor} onChange={(event) => editor?.chain().focus().setBackgroundColor(event.target.value).run()} /></label>
+          <ToolbarButton editor={editor} title="Add or edit link" active={formatting.link} command={editLink}><LinkIcon /></ToolbarButton>
+          <ToolbarButton editor={editor} title="Bullet list" active={formatting.bulletList} command={() => editor?.chain().focus().toggleBulletList().run()}><ListIcon /></ToolbarButton>
+          <ToolbarButton editor={editor} title="Numbered list" active={formatting.orderedList} command={() => editor?.chain().focus().toggleOrderedList().run()}><ListIcon ordered /></ToolbarButton>
+          <span className="toolbar-rule" />
+          {(["left", "center", "right", "justify"] as Alignment[]).map((alignment) => <ToolbarButton key={alignment} editor={editor} title={alignment === "justify" ? "Justify" : `Align ${alignment}`} active={formatting.alignment === alignment} command={() => editor?.chain().focus().setTextAlign(alignment).run()}><AlignmentIcon alignment={alignment} /></ToolbarButton>)}
           <ToolbarButton editor={editor} title="Outdent" command={() => adjustIndent(-1)}>←</ToolbarButton>
           <ToolbarButton editor={editor} title="Indent" command={() => adjustIndent(1)}>→</ToolbarButton>
         </nav>
-        <nav className="toolbar paragraph-toolbar" aria-label="Paragraph formatting">
-          {(["left", "center", "right", "justify"] as const).map((alignment) => <ToolbarButton key={alignment} editor={editor} title={`Align ${alignment}`} active={editor?.isActive({ textAlign: alignment })} command={() => editor?.chain().focus().setTextAlign(alignment).run()}>{alignment[0].toUpperCase()}</ToolbarButton>)}
-          <label>Line spacing <select aria-label="Line spacing" value={editor?.getAttributes(editor?.isActive("heading") ? "heading" : "paragraph").lineHeight ?? "1.5"} onChange={(event) => updateBlock({ lineHeight: event.target.value })}>
-            <option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2">2.0</option>
-          </select></label>
-          <label>Paragraph spacing <select aria-label="Paragraph spacing" value={`${editor?.getAttributes(editor?.isActive("heading") ? "heading" : "paragraph").spaceBefore ?? 0},${editor?.getAttributes(editor?.isActive("heading") ? "heading" : "paragraph").spaceAfter ?? 0}`} onChange={(event) => { const [spaceBefore, spaceAfter] = event.target.value.split(",").map(Number); updateBlock({ spaceBefore, spaceAfter }); }}>
-            <option value="0,0">None</option><option value="0,8">After 8 pt</option><option value="8,8">Before & after 8 pt</option><option value="12,12">Before & after 12 pt</option>
-          </select></label>
-          <button type="button" aria-keyshortcuts="Control+F Control+H" onClick={() => {
-            setFindOpen((value) => !value);
-            if (!findOpen) requestAnimationFrame(() => document.getElementById("find-query")?.focus());
-          }}>Find / Replace</button>
-          <button type="button" onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()}>Undo</button>
-          <button type="button" onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()}>Redo</button>
-        </nav>
 
-        {findOpen ? <section className="find-panel" aria-label="Find and replace" onKeyDown={(event) => {
+        {findOpen ? <section className="find-panel" role="dialog" aria-label="Find and replace" onKeyDown={(event) => {
           if (event.key === "Escape") closeFind();
         }}>
           <label>Find <input id="find-query" value={findQuery} onChange={(event) => updateFind(event.target.value)} /></label>
@@ -643,6 +870,37 @@ export function App() {
         {printSnapshot ? <section className="output-preview" aria-labelledby="output-heading"><div><p className="eyebrow">Immutable output snapshot</p><h2 id="output-heading">Print / PDF preview</h2></div><iframe title="Print/PDF preview" srcDoc={printSnapshot.html} data-testid="print-preview" /></section> : null}
         {preview ? <aside className="passage-preview" role="tooltip" aria-live="polite" aria-atomic="true" data-reference-kind={preview.candidate.kind} style={{ top: preview.top, left: preview.left }}><strong>{preview.candidate.display}</strong>{preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{preview.loading ? <p>Loading preview…</p> : null}{preview.passage ? <><p>{preview.passage.text}</p><small>{preview.passage.translationName}{preview.passage.cached ? " · local cache" : ""}</small>{preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{preview.error ? <p>{preview.error}</p> : null}</aside> : null}
       </main>
+
+      {paragraphOpen ? <div className="modal-backdrop"><section
+        ref={paragraphDialogRef}
+        className="paragraph-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="paragraph-heading"
+        aria-describedby="paragraph-description"
+        onKeyDown={(event) => trapFocus(event, paragraphDialogRef.current, closeParagraph)}
+      >
+        <h2 id="paragraph-heading">Paragraph</h2>
+        <p id="paragraph-description">Set spacing for the current paragraph.</p>
+        <div className="paragraph-fields">
+          <label>Line spacing<select
+            id="paragraph-line-spacing"
+            value={paragraphDraft.lineHeight}
+            onChange={(event) => setParagraphDraft((value) => ({ ...value, lineHeight: event.target.value }))}
+          >
+            <option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2">2.0</option>
+          </select></label>
+          <label>Space before<select
+            value={paragraphDraft.spaceBefore}
+            onChange={(event) => setParagraphDraft((value) => ({ ...value, spaceBefore: Number(event.target.value) }))}
+          >{paragraphSpacing.map((spacing) => <option key={spacing} value={spacing}>{spacing} pt</option>)}</select></label>
+          <label>Space after<select
+            value={paragraphDraft.spaceAfter}
+            onChange={(event) => setParagraphDraft((value) => ({ ...value, spaceAfter: Number(event.target.value) }))}
+          >{paragraphSpacing.map((spacing) => <option key={spacing} value={spacing}>{spacing} pt</option>)}</select></label>
+        </div>
+        <div className="dialog-actions"><button type="button" onClick={closeParagraph}>Cancel</button><button className="primary-action" type="button" onClick={applyParagraph}>Apply</button></div>
+      </section></div> : null}
 
       {pendingAction ? <div className="modal-backdrop"><section ref={dialogRef} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description" onKeyDown={trapDialogKeys}><h2 id="unsaved-heading">Save changes?</h2><p id="unsaved-description">Your latest writing has not been saved to the document.</p><div><button autoFocus type="button" onClick={() => void resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => void resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => void resolvePending("save")}>Save</button></div></section></div> : null}
 
