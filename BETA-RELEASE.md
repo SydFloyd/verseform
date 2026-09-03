@@ -1,5 +1,11 @@
 # Verseform 0.2.0 Windows Beta
 
+## Public Beta download
+
+[Verseform 0.2.0 Windows Beta](https://github.com/SydFloyd/verseform/releases/tag/v0.2.0) is published as a GitHub pre-release from the exact verified candidate commit. Download [the Windows installer](https://github.com/SydFloyd/verseform/releases/download/v0.2.0/Verseform_0.2.0_x64-setup.exe) together with [SHA256SUMS.txt](https://github.com/SydFloyd/verseform/releases/download/v0.2.0/SHA256SUMS.txt); [release-evidence.json](https://github.com/SydFloyd/verseform/releases/download/v0.2.0/release-evidence.json) records the source commit and clean workflow run. Installer SHA-256: `efe2b30270afb22ee5a8e9d99ded947b8a44ac82aa13e8096527c706e2ecb241`.
+
+This is an unsigned field Beta, not a stable `1.0` or verified-publisher release. Windows SmartScreen may show an unrecognized-publisher warning. Optional defect and daily-use reports belong in the [privacy-constrained Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml); never attach private writing or Verseform document, recovery, or cache files.
+
 ## Supported Beta
 
 Verseform 0.2.0 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect valid, fuzzy, ranged, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
@@ -35,6 +41,7 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 
 - [Windows Beta run 33807242045](https://github.com/SydFloyd/verseform/actions/runs/33807242045) verifies candidate commit `8b625569c535f4aeae21be7eea10ecd0b0982acf` on a clean GitHub-hosted Windows runner. It downloads the retained 0.1.0 Alpha artifact by exact run, audits npm and Rust dependencies, executes the canonical and stabilization suites, builds 0.2.0, proves Alpha-to-Beta profile/recovery/cache/document preservation, proves a separate clean offline installer lifecycle, and uploads the recorded artifact.
 - [Artifact `verseform-0.2.0-windows-beta`](https://github.com/SydFloyd/verseform/actions/runs/33807242045/artifacts/9914089711) contains `Verseform_0.2.0_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json`. Installer SHA-256: `efe2b30270afb22ee5a8e9d99ded947b8a44ac82aa13e8096527c706e2ecb241`. GitHub retains the artifact through `2026-10-03T21:39:46Z`; its uploaded archive digest is `sha256:5c0731c4d54f5ccee3e9c3fe6f12a5b2b2d30ea47a240d02cb825743cc6bbf0e`.
+- Public pre-release [`v0.2.0`](https://github.com/SydFloyd/verseform/releases/tag/v0.2.0) targets that exact candidate. GitHub reports the public 4,216,346-byte installer asset with the same SHA-256, and an independent direct download was re-hashed successfully after publication. Published assets are not replaced in place; any corrected binary receives a new version and clean-runner proof.
 - The canonical gate contains 39 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 33 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 660 locked dependency-license records. The focused endurance case repeats six complete document/scripture/save/print/PDF cycles while reusing one cached chapter; aging tests cover both TTLs and both cache bounds.
 
 ## Reproduce the release gate

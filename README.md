@@ -12,9 +12,9 @@ Verseform is a lightweight, local-first Windows text editor with one-click scrip
 
 ## Current milestone
 
-Verseform `0.2.0` Windows Beta is complete. Its compact writing-first interface and application kernel passed repeated daily-use, bounded cache/recovery, Alpha-to-Beta upgrade, clean offline install, advisory, and license proofs on a clean Windows runner. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources; detection remains entirely local.
+Verseform `0.2.0` Windows Beta is complete and available as a [public GitHub pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.0). Its compact writing-first interface and application kernel passed repeated daily-use, bounded cache/recovery, Alpha-to-Beta upgrade, clean offline install, advisory, and license proofs on a clean Windows runner. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources; detection remains entirely local.
 
-Read [BETA-RELEASE.md](BETA-RELEASE.md) for supported behavior, keyboard commands, known limits, the exact verified installer, and its checksum. [ALPHA-RELEASE.md](ALPHA-RELEASE.md) preserves the prior milestone evidence. [PRIVACY.md](PRIVACY.md) describes exactly what stays local and when the DBS service is contacted.
+Read [BETA-RELEASE.md](BETA-RELEASE.md) for supported behavior, keyboard commands, known limits, the exact verified installer, and its checksum. The installer is an explicitly unsigned field Beta; Windows may show an unrecognized-publisher warning. [ALPHA-RELEASE.md](ALPHA-RELEASE.md) preserves the prior milestone evidence, and [PRIVACY.md](PRIVACY.md) describes exactly what stays local and when the DBS service is contacted. Report defects and daily-use friction through the [Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml) without attaching private writing or Verseform data files.
 
 ## Develop and verify
 
