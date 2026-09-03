@@ -4,10 +4,10 @@ Updated: 2026-09-03
 
 ## Now
 
-- Stage: owner-guided beta refinement is complete on the verified Windows baseline.
+- Stage: the owner has accepted the verified Windows alpha as complete through `VFM-070`.
 - Active item: none; `VFM-070` is complete.
 - Next item: none in the current roadmap.
-- Baseline: the beta now uses familiar File/Edit menus and icon controls; live font, size, document-title, and dirty state stay synchronized; paragraph breaks trigger reference detection; NASB is preferred for a first online session without overriding saved preferences or offline WEB; and the established document-safety, accessibility, privacy, output, packaging, and attribution guarantees remain verified.
+- Baseline: the completed alpha uses familiar File/Edit menus and icon controls; live font, size, document-title, and dirty state stay synchronized; paragraph breaks trigger reference detection; NASB is preferred for a first online session without overriding saved preferences or offline WEB; and the established document-safety, accessibility, privacy, output, packaging, and attribution guarantees remain verified.
 
 ## Last verified
 

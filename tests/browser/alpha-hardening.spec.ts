@@ -83,7 +83,7 @@ test("a full destination keeps unsaved writing recoverable", async ({ page }) =>
   await expect(editor).toHaveText("Writing that survives a full destination");
 });
 
-test("offline beta flow inserts, saves, reopens, prints, and exports", async ({ page }) => {
+test("offline alpha flow inserts, saves, reopens, prints, and exports", async ({ page }) => {
   await reset(page, "/?dbs=offline");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("John 3:16 ");
