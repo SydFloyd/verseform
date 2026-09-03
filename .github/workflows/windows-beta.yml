@@ -64,6 +64,17 @@ jobs:
         run: npx playwright test tests/browser/scripture-providers.spec.ts
       - name: Run walking-slice journeys
         run: npx playwright test tests/browser/walking-slice.spec.ts
+      - name: Publish browser failure evidence
+        if: failure()
+        shell: pwsh
+        run: |
+          $contexts = @(Get-ChildItem "artifacts/playwright" -Recurse -Filter "error-context.md" -ErrorAction SilentlyContinue)
+          foreach ($context in $contexts) {
+            $message = Get-Content -Raw -LiteralPath $context.FullName
+            if ($message.Length -gt 3500) { $message = $message.Substring(0, 3500) }
+            $escaped = $message.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+            Write-Output "::error title=Playwright failure::$escaped"
+          }
       - name: Run native and Windows checks
         run: npm run check:native
       - name: Validate release boundaries and licenses
