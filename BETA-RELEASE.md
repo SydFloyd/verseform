@@ -21,6 +21,12 @@ The installed app works offline with the bundled public-domain World English Bib
 - Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, and non-Windows releases are outside this beta.
 - The beta installer is not code-signed. Windows SmartScreen may show an unrecognized-publisher warning.
 
+## Verified beta evidence
+
+- [Windows beta run 33750557124](https://github.com/SydFloyd/verseform/actions/runs/33750557124) passed on a clean GitHub-hosted Windows Server 2025 runner at commit `cd87174`: npm and Rust advisory audits, the canonical regression suite, a fresh NSIS build, the per-user install/provider-blocked launch/uninstall lifecycle, user-document preservation, and artifact upload all succeeded.
+- The run's production-browser suite completed the provider-free offline detect-to-insert/save/reopen/print/PDF flow. The installed-app lifecycle separately verified a responsive offline launch, Windows registration and removal, and preservation of a user-created `.verseform` document.
+- The uploaded artifact is `verseform-0.1.0-windows-beta`, retained through 2026-09-17. The locally verified installer is 4,193,533 bytes with SHA-256 `B18294AE915BA7561BB516B83EBDA25AB6BF18560516399AA443B2DA77C63C53`; its unsigned status is the documented beta limit above.
+
 ## Release checklist
 
 Run from a clean dependency install:
