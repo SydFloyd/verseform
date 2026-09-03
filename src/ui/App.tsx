@@ -8,6 +8,7 @@ import {
 } from "../editor/EditorSurface";
 import type { Alignment } from "../editor/gateway";
 import { CreditsDialog } from "./CreditsDialog";
+import { PdfExportDialog } from "./PdfExportDialog";
 import { TranslationPicker } from "./TranslationPicker";
 
 type MenuName = "file" | "edit" | "help";
@@ -185,6 +186,8 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const paragraphReturnFocus = useRef<HTMLElement | null>(null);
   const creditsDialogRef = useRef<HTMLElement | null>(null);
   const creditsReturnFocus = useRef<HTMLElement | null>(null);
+  const pdfDialogRef = useRef<HTMLElement | null>(null);
+  const pdfReturnFocus = useRef<HTMLElement | null>(null);
   const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const editMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const helpMenuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -230,11 +233,19 @@ export function App({ controller }: { controller: WorkspaceController }) {
       creditsReturnFocus.current = null;
     });
   };
+  const cancelPdfExport = () => {
+    controller.cancelPdfExport();
+    requestAnimationFrame(() => {
+      pdfReturnFocus.current?.focus();
+      pdfReturnFocus.current = null;
+    });
+  };
 
   const find = view.overlay.type === "find" ? view.overlay : undefined;
   const paragraph = view.overlay.type === "paragraph" ? view.overlay : undefined;
   const confirming = view.overlay.type === "confirm";
   const credits = view.overlay.type === "credits" ? view.overlay : undefined;
+  const pdfExport = view.overlay.type === "pdfExport" ? view.overlay : undefined;
   const formatting = view.formatting;
   const recovery = view.recoveries[0];
   const initialCanon = controller.getState().scripture.fallback.canon;
@@ -244,7 +255,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
       <a className="skip-link" href="#document-editor" onClick={(event) => {
         event.preventDefault(); controller.focusEditor();
       }}>Skip to document editor</a>
-      <main className="app-shell" inert={confirming || Boolean(paragraph) || Boolean(credits) ? true : undefined}>
+      <main className="app-shell" inert={confirming || Boolean(paragraph) || Boolean(pdfExport) || Boolean(credits) ? true : undefined}>
         <h1 className="sr-only">Verseform document editor</h1>
 
         {recovery ? <section className="recovery-banner" aria-label="Recovery available">
@@ -265,7 +276,10 @@ export function App({ controller }: { controller: WorkspaceController }) {
             <div className="menu-separator" role="separator" />
             <MenuItem checked={view.pageNumbers} disabled={!controller.isEnabled("file.pageNumbers")} onClick={() => run("file.pageNumbers")}>{label("file.pageNumbers")}</MenuItem>
             <MenuItem shortcut={shortcut("file.print")} disabled={!controller.isEnabled("file.print")} onClick={() => run("file.print")}>{label("file.print")}</MenuItem>
-            <MenuItem disabled={!controller.isEnabled("file.savePdf")} onClick={() => run("file.savePdf")}>{label("file.savePdf")}</MenuItem>
+            <MenuItem disabled={!controller.isEnabled("file.savePdf")} onClick={() => {
+              pdfReturnFocus.current = fileMenuButtonRef.current;
+              run("file.savePdf");
+            }}>{label("file.savePdf")}</MenuItem>
           </ToolbarMenu>
           <ToolbarMenu id="edit-menu" label="Edit" open={openMenu === "edit"} buttonRef={editMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "edit" : undefined)}>
             <MenuItem shortcut={shortcut("edit.undo")} disabled={!controller.isEnabled("edit.undo")} onClick={() => run("edit.undo")}>{label("edit.undo")}</MenuItem>
@@ -358,9 +372,18 @@ export function App({ controller }: { controller: WorkspaceController }) {
         /></section>
         <p className="status-line" role="status" aria-live="polite">{view.status}</p>
 
-        {view.printSnapshot ? <section className="output-preview" aria-labelledby="output-heading"><div><p className="eyebrow">Immutable output snapshot</p><h2 id="output-heading">Print / PDF preview</h2></div><iframe title="Print/PDF preview" srcDoc={view.printSnapshot.html} data-testid="print-preview" /></section> : null}
         {view.preview ? <aside className="passage-preview" role="tooltip" aria-live="polite" aria-atomic="true" data-reference-kind={view.preview.candidate.kind} style={{ top: view.preview.top, left: view.preview.left }}><strong>{view.preview.candidate.display}</strong>{view.preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{view.preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{view.preview.loading ? <p>Loading preview…</p> : null}{view.preview.passage ? <><p>{view.preview.passage.text}</p><small>{view.preview.passage.translationName}{view.preview.passage.cached ? " · local cache" : ""}</small>{view.preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {view.preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{view.preview.error ? <p>{view.preview.error}</p> : null}</aside> : null}
       </main>
+
+      {pdfExport && view.printSnapshot ? <PdfExportDialog
+        snapshot={view.printSnapshot}
+        pageNumbers={view.pageNumbers}
+        dialogRef={pdfDialogRef}
+        onTogglePageNumbers={() => controller.togglePageNumbers()}
+        onCancel={cancelPdfExport}
+        onExport={() => controller.confirmPdfExport()}
+        onKeyDown={(event) => trapFocus(event, pdfDialogRef.current, cancelPdfExport)}
+      /> : null}
 
       {credits ? <CreditsDialog
         model={view.credits}

@@ -214,6 +214,18 @@ export class WorkspaceController {
     this.send({ type: "overlay.applyParagraph" });
   }
 
+  togglePageNumbers(): void {
+    this.send({ type: "output.togglePageNumbers" });
+  }
+
+  confirmPdfExport(): void {
+    this.send({ type: "output.confirmPdf" });
+  }
+
+  cancelPdfExport(): void {
+    this.send({ type: "output.cancelPdf" });
+  }
+
   closeCredits(): void {
     this.send({ type: "overlay.closeCredits" });
   }

@@ -86,8 +86,8 @@ The workspace is one aggregate with explicit, concurrently valid regions:
 | `document` | Document identity, optional granted path, display name, editor revision, current content hash, and saved content hash. `dirty` is derived by comparing hashes. Tiptap alone owns the live editable tree. |
 | `persistence` | Idle, scheduled recovery/autosave, or an identified explicit/automatic save with its frozen document ID and content hash. |
 | `scripture` | Catalog phase, available translations, selected preference, effective fallback, and at most one identified preview/insertion request. |
-| `output` | Page-number preference and one of idle, preparing a frozen snapshot, printing, or saving PDF. |
-| `overlay` | Exactly one of none, Find, Paragraph, Credits & Licenses, or unsaved-navigation confirmation. An in-flight credits link holds its own operation stamp. Non-modal menus are separate ephemeral view state. |
+| `output` | Page-number preference, optional frozen snapshot and operation stamp, and one of idle, capturing, previewing PDF, preparing, printing, or saving PDF. The requested output mode is explicit while an operation is active. |
+| `overlay` | Exactly one of none, Find, Paragraph, PDF Export, Credits & Licenses, or unsaved-navigation confirmation. An in-flight credits link holds its own operation stamp. Non-modal menus are separate ephemeral view state. |
 | `notice` | The latest user-facing message and its monotonic identity; identified background completions cannot overwrite a newer message. |
 
 The editor gateway emits immutable observations containing the content hash, whether the completed transaction changed the document, selection formatting, and command availability. The kernel alone advances the editor revision. Observations cross a microtask boundary so ProseMirror completes selection handling before React renders the result. The gateway accepts a closed instruction union and can freeze one editor snapshot for save/output. Native typing and IME composition apply within Tiptap first, then emit an observation; application and toolbar commands follow the command/event/effect path. This keeps high-frequency editing responsive, keeps ProseMirror positions and transactions in `src/editor/`, and lets the application kernel reason about lifecycle without importing Tiptap.
@@ -139,9 +139,9 @@ DBS responses are redirect-, time-, size-, and schema-bounded, normalized to pla
 
 ### Output
 
-Printing and PDF export operate on an immutable document snapshot, not the live editor DOM. The output renderer creates escaped semantic print HTML, derives translation notices from citation marks, and uses Chromium page-margin boxes for the repeated DBS footer, notices, and optional page counter. The Windows adapter invokes the WebView2 system print UI for Print. Save PDF first grants one destination through a native dialog, then awaits WebView2 `PrintToPdf` completion with fixed Letter settings and browser headers disabled.
+Printing and PDF export operate on an immutable document snapshot, not the live editor DOM. The output renderer creates escaped semantic print HTML, derives translation notices from citation marks, and uses Chromium page-margin boxes for the repeated DBS footer, notices, and optional page counter. Print invokes WebView2's browser print-preview UI over that frozen surface. Save PDF opens a modal Verseform preview first; its page-number control rebuilds only the snapshot presentation from the already-frozen title, body, and notices. Export then grants one destination through a native Save dialog and awaits WebView2 `PrintToPdf` completion with fixed Letter settings and browser headers disabled.
 
-The output adapter is the only platform-specific seam. The browser harness generates and text-extracts a representative multi-page Edge PDF; native checks cover WebView2 availability and destination validation.
+The output adapter is the only platform-specific seam. The browser harness proves preview focus containment, both pre-export and native-dialog cancellation, immutable option changes, and a generated/text-extracted representative multi-page Edge PDF; native checks cover WebView2 browser-preview availability and destination validation.
 
 ### Beta interaction surface
 
@@ -173,7 +173,7 @@ Editor observations update revision/current hash; dirty state is derived and a s
 
 ### Print and export
 
-The output transition claims the output region, freezes one editor snapshot, validates it, aggregates translation notices, renders print HTML, and hands it to the Windows output adapter. Result events release only their matching operation. Cancelling a dialog changes nothing. Export writes only the user-selected PDF destination and never mutates the open document.
+The output transition claims the output region with an explicit mode and stamp, freezes one editor snapshot, validates it, aggregates translation notices, and renders print HTML. Print waits until the hidden frozen surface has painted, then hands it to WebView2's browser print-preview UI. Save PDF enters the exclusive PDF Export overlay without executing an adapter effect; Cancel releases the operation, while Export closes the overlay, waits for the selected snapshot to paint, and only then invokes the native Save/`PrintToPdf` boundary. Mismatched mode, phase, or operation results are ignored. Export writes only the user-selected PDF destination and never mutates the open document.
 
 ## Trust and privacy boundaries
 

@@ -1,5 +1,5 @@
 import { contentHash, type DocumentIdentity, type EditorNode, type VerseformDocument } from "../core/document";
-import { buildPrintSnapshot, type PrintSnapshot } from "../core/output";
+import { buildPrintSnapshot, updatePrintSnapshotOptions, type PrintSnapshot } from "../core/output";
 import type { DetectedReference, ReferenceCandidate } from "../core/reference";
 import type { LookupRequest } from "../core/lookup";
 import type {
@@ -56,6 +56,7 @@ export type WorkspaceOverlay =
   | { type: "confirm"; action: PendingDocumentAction }
   | { type: "find"; query: string; replacement: string; index: number; count: number }
   | { type: "paragraph"; draft: ParagraphSettings }
+  | { type: "pdfExport" }
   | { type: "credits"; link?: { target: CreditLinkId; stamp: OperationStamp }; error?: string };
 
 type TimerOperation = { phase: "scheduled" | "capturing" | "writing"; stamp: OperationStamp };
@@ -113,7 +114,8 @@ export type WorkspaceState = {
   };
   output: {
     pageNumbers: boolean;
-    phase: "idle" | "capturing" | "preparing" | "printing" | "savingPdf";
+    phase: "idle" | "capturing" | "previewingPdf" | "preparing" | "printing" | "savingPdf";
+    mode?: "print" | "pdf";
     stamp?: OperationStamp;
     snapshot?: PrintSnapshot;
   };
@@ -195,6 +197,8 @@ export type WorkspaceEvent =
   | { type: "scripture.insertionVerified"; operationId: number; fresh: boolean }
   | { type: "output.togglePageNumbers" }
   | { type: "output.request"; mode: "print" | "pdf" }
+  | { type: "output.confirmPdf" }
+  | { type: "output.cancelPdf" }
   | { type: "output.paintReady"; operationId: number; mode: "print" | "pdf" }
   | { type: "output.printed"; operationId: number }
   | { type: "output.pdfResult"; operationId: number; saved: SavedPdf | null }
@@ -298,7 +302,7 @@ function beginAction(state: WorkspaceState, action: PendingDocumentAction): Tran
       },
       persistence: {},
       overlay: { type: "none" },
-      output: { ...state.output, phase: "idle", stamp: undefined, snapshot: undefined },
+      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
     }, "New document.");
     return { state: next, effects: [
       { type: "timer.cancel", timer: "recovery" },
@@ -515,9 +519,19 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
           : { type: "document.saveAs", stamp, document: event.document, suggestedName: state.document.displayName }],
         };
       }
-      if (state.output.phase !== "capturing" || state.output.stamp?.id !== event.stamp.id) return { state, effects: [] };
+      if (state.output.phase !== "capturing" || state.output.stamp?.id !== event.stamp.id || state.output.mode !== event.purpose.mode) return { state, effects: [] };
       const snapshot = buildPrintSnapshot(event.document, { pageNumbers: state.output.pageNumbers });
       const mode = event.purpose.mode;
+      if (mode === "pdf") {
+        return {
+          state: {
+            ...state,
+            output: { ...state.output, phase: "previewingPdf", snapshot },
+            overlay: { type: "pdfExport" },
+          },
+          effects: [],
+        };
+      }
       return {
         state: {
           ...state,
@@ -527,8 +541,8 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       };
     }
     case "editor.captureFailed": {
-      if (event.purpose.type === "output" && state.output.stamp?.id === event.stamp.id) {
-        return { state: notice({ ...state, output: { ...state.output, phase: "idle", stamp: undefined } }, `${event.purpose.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
+      if (event.purpose.type === "output" && state.output.stamp?.id === event.stamp.id && state.output.mode === event.purpose.mode) {
+        return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, `${event.purpose.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
       }
       if (event.purpose.type === "save" && state.persistence.save?.stamp.id === event.stamp.id) {
         return { state: notice({ ...state, persistence: { ...state.persistence, save: undefined } }, `Save failed: ${event.error}`), effects: [] };
@@ -697,7 +711,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         },
         persistence: {},
         library: { ...state.library, recentOperationId: operation.stamp.id },
-        output: { ...state.output, phase: "idle", stamp: undefined, snapshot: undefined },
+        output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
       }, `Opened ${event.opened.displayName}.`);
       return { state: next, effects: [
         { type: "timer.cancel", timer: "recovery" },
@@ -900,18 +914,44 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       ] };
     }
     case "output.togglePageNumbers":
-      return state.output.phase === "idle"
-        ? { state: { ...state, output: { ...state.output, pageNumbers: !state.output.pageNumbers } }, effects: [] }
-        : { state, effects: [] };
+      if (state.output.phase === "idle") {
+        return { state: { ...state, output: { ...state.output, pageNumbers: !state.output.pageNumbers } }, effects: [] };
+      }
+      if (state.output.phase === "previewingPdf" && state.overlay.type === "pdfExport" && state.output.snapshot) {
+        const pageNumbers = !state.output.pageNumbers;
+        return { state: { ...state, output: {
+          ...state.output,
+          pageNumbers,
+          snapshot: updatePrintSnapshotOptions(state.output.snapshot, { pageNumbers }),
+        } }, effects: [] };
+      }
+      return { state, effects: [] };
     case "output.request": {
       if (state.output.phase !== "idle") return { state, effects: [] };
       const stamp = operationStamp(state);
-      return { state: advance({ ...state, output: { ...state.output, phase: "capturing", stamp } }), effects: [
+      return { state: advance({ ...state, output: { ...state.output, phase: "capturing", mode: event.mode, stamp } }), effects: [
         { type: "editor.capture", stamp, purpose: { type: "output", mode: event.mode } },
       ] };
     }
+    case "output.confirmPdf": {
+      if (state.output.phase !== "previewingPdf" || state.output.mode !== "pdf" || state.overlay.type !== "pdfExport" || !state.output.stamp || !state.output.snapshot) {
+        return { state, effects: [] };
+      }
+      return {
+        state: { ...state, output: { ...state.output, phase: "preparing" }, overlay: { type: "none" } },
+        effects: [{ type: "output.afterPaint", mode: "pdf", stamp: state.output.stamp }],
+      };
+    }
+    case "output.cancelPdf":
+      return state.output.phase === "previewingPdf" && state.output.mode === "pdf" && state.overlay.type === "pdfExport"
+        ? { state: notice({
+          ...state,
+          output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+          overlay: { type: "none" },
+        }, "PDF export canceled. The document was not changed."), effects: [] }
+        : { state, effects: [] };
     case "output.paintReady": {
-      if (state.output.stamp?.id !== event.operationId || state.output.phase !== "preparing" || !state.output.snapshot) return { state, effects: [] };
+      if (state.output.stamp?.id !== event.operationId || state.output.phase !== "preparing" || state.output.mode !== event.mode || !state.output.snapshot) return { state, effects: [] };
       const next = { ...state, output: { ...state.output, phase: event.mode === "print" ? "printing" as const : "savingPdf" as const } };
       const suggestedName = state.document.displayName.replace(/\.verseform$/i, "") || "Verseform";
       return { state: next, effects: [event.mode === "print"
@@ -920,18 +960,18 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       };
     }
     case "output.printed": {
-      if (state.output.stamp?.id !== event.operationId) return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", stamp: undefined } }, "Windows print dialog opened with an immutable attributed snapshot."), effects: [] };
+      if (state.output.stamp?.id !== event.operationId || state.output.phase !== "printing") return { state, effects: [] };
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, "Browser print preview opened with an immutable attributed snapshot."), effects: [] };
     }
     case "output.pdfResult": {
-      if (state.output.stamp?.id !== event.operationId) return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", stamp: undefined } }, event.saved
+      if (state.output.stamp?.id !== event.operationId || state.output.phase !== "savingPdf") return { state, effects: [] };
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, event.saved
         ? `Exported ${event.saved.displayName} without changing the document.`
         : "PDF export canceled. The document was not changed."), effects: [] };
     }
     case "output.failed": {
-      if (state.output.stamp?.id !== event.operationId) return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", stamp: undefined } }, `${event.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
+      if (state.output.stamp?.id !== event.operationId || state.output.mode !== event.mode) return { state, effects: [] };
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined } }, `${event.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
     }
     case "overlay.openFind":
       return { state: { ...state, overlay: { type: "find", query: "", replacement: "", index: 0, count: 0 } }, effects: [

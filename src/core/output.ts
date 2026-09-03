@@ -3,6 +3,7 @@ import type { EditorMark, EditorNode, VerseformDocument } from "./document";
 export type PrintOptions = { pageNumbers: boolean };
 
 export type PrintSnapshot = {
+  title: string;
   html: string;
   bodyHtml: string;
   notices: string[];
@@ -159,16 +160,12 @@ function renderNode(node: EditorNode, translations: Map<string, string | undefin
   }
 }
 
-export function buildPrintSnapshot(
-  document: VerseformDocument,
+function assemblePrintSnapshot(
+  title: string,
+  bodyHtml: string,
+  notices: string[],
   options: PrintOptions,
 ): PrintSnapshot {
-  const translations = new Map<string, string | undefined>();
-  const bodyHtml = renderNode(document.content, translations);
-  const notices = [...translations].sort(([left], [right]) => left.localeCompare(right)).map(
-    ([translation, notice]) => notice ?? attributionByTranslation[translation]
-      ?? `Translation attribution required for ${translation}.`,
-  );
   const pageNumber = options.pageNumbers
     ? '<div class="preview-page-number" aria-label="Page 1">Page 1</div>'
     : "";
@@ -202,7 +199,7 @@ export function buildPrintSnapshot(
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>${escapeHtml(document.title)} — Verseform</title>
+  <title>${escapeHtml(title)} — Verseform</title>
   <style>
     ${printCss}
     html { background: #f3efe7; }
@@ -225,5 +222,25 @@ export function buildPrintSnapshot(
 </body>
 </html>`;
 
-  return { html, bodyHtml, notices, pageNumbers: options.pageNumbers, printCss };
+  return { title, html, bodyHtml, notices, pageNumbers: options.pageNumbers, printCss };
+}
+
+export function buildPrintSnapshot(
+  document: VerseformDocument,
+  options: PrintOptions,
+): PrintSnapshot {
+  const translations = new Map<string, string | undefined>();
+  const bodyHtml = renderNode(document.content, translations);
+  const notices = [...translations].sort(([left], [right]) => left.localeCompare(right)).map(
+    ([translation, notice]) => notice ?? attributionByTranslation[translation]
+      ?? `Translation attribution required for ${translation}.`,
+  );
+  return assemblePrintSnapshot(document.title, bodyHtml, notices, options);
+}
+
+export function updatePrintSnapshotOptions(
+  snapshot: PrintSnapshot,
+  options: PrintOptions,
+): PrintSnapshot {
+  return assemblePrintSnapshot(snapshot.title, snapshot.bodyHtml, snapshot.notices, options);
 }

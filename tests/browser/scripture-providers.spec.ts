@@ -38,7 +38,7 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
   expect(await page.evaluate(() => (window as typeof window & { __dbsNetworkRequests?: number }).__dbsNetworkRequests)).toBe(1);
 
   await page.keyboard.press("Control+p");
-  await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
+  await expect(page.locator(".print-surface"))
     .toContainText("DBS test fixture — not production scripture.");
 
   await page.reload();

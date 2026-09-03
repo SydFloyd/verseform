@@ -322,6 +322,14 @@ describe("workspace kernel", () => {
   test("output is immutable through paint, cancellation, and failure", () => {
     const requested = step(initial(), { type: "output.request", mode: "pdf" });
     const capture = effect(requested.effects, "editor.capture");
+    const mismatchedCapture = step(requested.state, {
+      type: "editor.captured",
+      stamp: capture.stamp,
+      purpose: { type: "output", mode: "print" },
+      document: documentFor(capture.stamp),
+    });
+    expect(mismatchedCapture.state).toBe(requested.state);
+    expect(mismatchedCapture.effects).toEqual([]);
     const prepared = step(requested.state, {
       type: "editor.captured",
       stamp: capture.stamp,
@@ -330,11 +338,37 @@ describe("workspace kernel", () => {
     });
     expect(prepared.state.output.snapshot?.bodyHtml).toContain("John 3:16");
     expect(prepared.state.document.identity).toBeUndefined();
-    const painted = step(prepared.state, { type: "output.paintReady", operationId: capture.stamp.id, mode: "pdf" });
-    expect(effect(painted.effects, "output.savePdf").snapshot).toBe(prepared.state.output.snapshot);
+    expect(prepared.state.output.phase).toBe("previewingPdf");
+    expect(prepared.state.overlay.type).toBe("pdfExport");
+    expect(prepared.effects).toEqual([]);
+
+    const paged = step(prepared.state, { type: "output.togglePageNumbers" });
+    expect(paged.state.output.snapshot?.bodyHtml).toBe(prepared.state.output.snapshot?.bodyHtml);
+    expect(paged.state.output.snapshot?.pageNumbers).toBe(true);
+    expect(step(paged.state, { type: "output.paintReady", operationId: capture.stamp.id, mode: "pdf" }).effects).toEqual([]);
+
+    const confirmed = step(paged.state, { type: "output.confirmPdf" });
+    expect(confirmed.state.output.phase).toBe("preparing");
+    expect(confirmed.state.overlay.type).toBe("none");
+    expect(effect(confirmed.effects, "output.afterPaint").mode).toBe("pdf");
+    const painted = step(confirmed.state, { type: "output.paintReady", operationId: capture.stamp.id, mode: "pdf" });
+    expect(effect(painted.effects, "output.savePdf").snapshot).toBe(paged.state.output.snapshot);
     const canceled = step(painted.state, { type: "output.pdfResult", operationId: capture.stamp.id, saved: null });
     expect(canceled.state.output.phase).toBe("idle");
     expect(canceled.state.notice.message).toContain("canceled");
+
+    const requestedForDialogCancel = step(initial(), { type: "output.request", mode: "pdf" });
+    const cancelCapture = effect(requestedForDialogCancel.effects, "editor.capture");
+    const previewedForCancel = step(requestedForDialogCancel.state, {
+      type: "editor.captured",
+      stamp: cancelCapture.stamp,
+      purpose: { type: "output", mode: "pdf" },
+      document: documentFor(cancelCapture.stamp),
+    });
+    const dialogCanceled = step(previewedForCancel.state, { type: "output.cancelPdf" });
+    expect(dialogCanceled.state.output.phase).toBe("idle");
+    expect(dialogCanceled.state.output.snapshot).toBeUndefined();
+    expect(dialogCanceled.state.overlay.type).toBe("none");
 
     const print = step(initial(), { type: "output.request", mode: "print" });
     const printId = print.state.output.stamp!.id;

@@ -66,9 +66,10 @@ Available authorized translations are loaded from DBS. The compact selector show
 
 ## Print and export
 
-- Print through the standard Windows print flow.
-- Export to PDF with accurate formatting.
-- Page numbering is an optional print/PDF setting rather than an editing feature.
+- Print opens WebView2's browser print preview so the user can review output and choose the standard Windows printer settings.
+- Save PDF opens a dedicated Verseform dialog with an immutable, accurately formatted preview, then uses a native Save dialog only after the user chooses Export PDF.
+- Page numbering is an optional print/PDF setting available in the output workflow rather than an editing feature.
+- The live editor remains a continuous writing surface; editing-view pagination and editable page furniture are out of scope.
 - Printed and exported pages include a non-editable “Powered by DBS” footer by default.
 - The application automatically includes translation-specific attribution or copyright notices required for the scripture quoted, regardless of quotation length.
 

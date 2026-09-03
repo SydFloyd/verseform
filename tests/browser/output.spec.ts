@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { chooseMenuItem, selectScriptureTranslation, togglePageNumbers } from "./menu-helpers";
@@ -22,7 +23,7 @@ async function pdfPageText(pdf: Buffer): Promise<string[]> {
   return pages;
 }
 
-test("freezes output settings and preserves the document when Save PDF is canceled", async ({ page }) => {
+test("reviews a frozen PDF accessibly and preserves the document through both cancellation paths", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     window.addEventListener("verseform:pdf-export", (event) => {
       window.__lastPdfSnapshot = (event as CustomEvent).detail;
@@ -31,14 +32,42 @@ test("freezes output settings and preserves the document when Save PDF is cancel
   await page.goto("/?pdf=cancel");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("Writing that must survive a canceled export.");
-  await togglePageNumbers(page);
   await chooseMenuItem(page, "File", /^Save PDF$/);
 
+  const dialog = page.getByRole("dialog", { name: "Export PDF" });
+  const exportButton = dialog.getByRole("button", { name: /^Export PDF/ });
+  const pageNumbers = dialog.getByRole("checkbox", { name: "Page numbers" });
+  const preview = page.frameLocator('iframe[title="PDF export preview"]');
+  await expect(dialog).toBeVisible();
+  await expect(exportButton).toBeFocused();
+  await expect(preview.locator("body")).toContainText("Writing that must survive a canceled export.");
+  await pageNumbers.check();
+  await expect(preview.locator("body")).toContainText("Page 1");
+  await exportButton.press("Tab");
+  await expect(pageNumbers).toBeFocused();
+  await pageNumbers.press("Shift+Tab");
+  await expect(exportButton).toBeFocused();
+  const accessibility = await new AxeBuilder({ page })
+    .include(".pdf-export-dialog")
+    .exclude(".pdf-preview-frame")
+    .setLegacyMode()
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+  const screenshot = await page.screenshot({ path: "artifacts/vfm-110-pdf-export-dialog.png", fullPage: false });
+  await testInfo.attach("PDF export dialog", { body: screenshot, contentType: "image/png" });
+  await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("status")).toContainText("PDF export canceled");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "File", exact: true })).toBeFocused();
   await expect(editor).toHaveText("Writing that must survive a canceled export.");
   await expect.poll(() => page.title()).toContain("Unsaved changes");
-  await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
-    .toContainText("Page 1");
+  expect(await page.evaluate(() => window.__lastPdfSnapshot)).toBeUndefined();
+
+  await chooseMenuItem(page, "File", /^Save PDF$/);
+  await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__lastPdfSnapshot?.pageNumbers)).toBe(true);
+  await expect(page.getByRole("status")).toContainText("PDF export canceled");
 });
 
 test("reports an unwritable PDF destination without changing open writing", async ({ page }) => {
@@ -46,6 +75,7 @@ test("reports an unwritable PDF destination without changing open writing", asyn
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.fill("Keep this exact writing after output failure.");
   await chooseMenuItem(page, "File", /^Save PDF$/);
+  await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
 
   await expect(page.getByRole("status")).toContainText("selected PDF destination is not writable");
   await expect(editor).toHaveText("Keep this exact writing after output failure.");
@@ -63,6 +93,7 @@ test("offline output makes no scripture-provider request", async ({ page }) => {
   await page.getByRole("textbox", { name: "Document editor" })
     .fill("This output is available with no provider connection.");
   await chooseMenuItem(page, "File", /^Save PDF$/);
+  await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
 
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
   expect(await page.evaluate(() => window.__outputProviderRequests)).toBe(0);
@@ -104,6 +135,8 @@ test("multi-page PDF contains every footer, notice, and optional page number", a
 
   await togglePageNumbers(page);
   await chooseMenuItem(page, "File", /^Save PDF$/);
+  await expect(page.frameLocator('iframe[title="PDF export preview"]').locator("body")).toContainText("Reflection 54.");
+  await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
 
   const pdf = await page.pdf({

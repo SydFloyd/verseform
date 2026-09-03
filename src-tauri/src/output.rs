@@ -5,14 +5,16 @@ use std::time::Duration;
 use tauri::WebviewWindow;
 use tokio::sync::oneshot;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
-    COREWEBVIEW2_PRINT_DIALOG_KIND_SYSTEM, ICoreWebView2_7, ICoreWebView2_16,
-    ICoreWebView2Environment6, ICoreWebView2PrintToPdfCompletedHandler,
+    COREWEBVIEW2_PRINT_DIALOG_KIND, COREWEBVIEW2_PRINT_DIALOG_KIND_BROWSER, ICoreWebView2_7,
+    ICoreWebView2_16, ICoreWebView2Environment6, ICoreWebView2PrintToPdfCompletedHandler,
     ICoreWebView2PrintToPdfCompletedHandler_Impl,
 };
 use windows::core::{HSTRING, Interface, implement};
 use windows_core::BOOL;
 
 const OUTPUT_TIMEOUT: Duration = Duration::from_secs(120);
+const VERSEFORM_PRINT_DIALOG_KIND: COREWEBVIEW2_PRINT_DIALOG_KIND =
+    COREWEBVIEW2_PRINT_DIALOG_KIND_BROWSER;
 type OutputSender = Arc<Mutex<Option<oneshot::Sender<Result<(), String>>>>>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -92,7 +94,7 @@ async fn await_output(receiver: oneshot::Receiver<Result<(), String>>) -> Result
     }
 }
 
-pub async fn show_system_print_dialog(window: WebviewWindow) -> Result<(), String> {
+pub async fn show_browser_print_dialog(window: WebviewWindow) -> Result<(), String> {
     let (sender, receiver) = oneshot::channel();
     let sender = Arc::new(Mutex::new(Some(sender)));
     let closure_sender = Arc::clone(&sender);
@@ -102,9 +104,9 @@ pub async fn show_system_print_dialog(window: WebviewWindow) -> Result<(), Strin
                 .controller()
                 .CoreWebView2()
                 .and_then(|webview| webview.cast::<ICoreWebView2_16>())
-                .and_then(|webview| webview.ShowPrintUI(COREWEBVIEW2_PRINT_DIALOG_KIND_SYSTEM))
+                .and_then(|webview| webview.ShowPrintUI(VERSEFORM_PRINT_DIALOG_KIND))
                 .map_err(|error| {
-                    format!("Windows could not open the system print dialog: {error}")
+                    format!("Windows could not open the browser print preview: {error}")
                 });
             complete(&closure_sender, result);
         })
@@ -177,6 +179,14 @@ pub async fn export_pdf(window: WebviewWindow, path: PathBuf) -> Result<(), Stri
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn print_uses_webview2_browser_preview() {
+        assert_eq!(
+            VERSEFORM_PRINT_DIALOG_KIND.0,
+            COREWEBVIEW2_PRINT_DIALOG_KIND_BROWSER.0
+        );
+    }
 
     #[test]
     fn pdf_names_are_safe_and_keep_the_pdf_extension() {

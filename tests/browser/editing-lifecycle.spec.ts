@@ -70,10 +70,11 @@ test("formats with keyboard and toolbar controls, then preserves formatting on r
   await expect(editor.locator("p")).toHaveAttribute("data-indent", "1");
 
   await page.keyboard.press("Control+p");
-  const frame = page.frameLocator('iframe[title="Print/PDF preview"]');
-  await expect(frame.locator("strong").first()).toHaveText("Bold");
-  await expect(frame.locator("a").first()).toHaveAttribute("href", "https://example.com");
-  await expect(frame.locator("p").first()).toHaveCSS("text-align", "center");
+  await expect(page.getByRole("status")).toContainText("Browser print preview opened");
+  const printSurface = page.locator(".print-surface");
+  await expect(printSurface.locator("strong").first()).toHaveText("Bold");
+  await expect(printSurface.locator("a").first()).toHaveAttribute("href", "https://example.com");
+  await expect(printSurface.locator("p").first()).toHaveCSS("text-align", "center");
 });
 
 test("find/replace and clean paste keep only safe writing markup", async ({ page }) => {

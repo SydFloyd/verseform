@@ -10,7 +10,7 @@ import {
 import formattedFixture from "./fixtures/formatted-v2.verseform.json";
 import legacyFixture from "./fixtures/legacy-v1.verseform.json";
 import { isLookupFresh } from "../src/core/lookup";
-import { buildPrintSnapshot } from "../src/core/output";
+import { buildPrintSnapshot, updatePrintSnapshotOptions } from "../src/core/output";
 import { WEB_CANON, type CanonMetadata } from "../src/core/canon";
 import { isValidReference, scanReferences } from "../src/core/reference";
 import referenceCorpus from "./fixtures/reference-corpus-v1.json";
@@ -236,5 +236,13 @@ describe("portable documents and output", () => {
     expect(snapshot.html).not.toContain("<copyright owner>");
     expect(snapshot.pageNumbers).toBe(false);
     expect(snapshot.printCss).not.toContain('content: "Page " counter(page)');
+
+    const paged = updatePrintSnapshotOptions(snapshot, { pageNumbers: true });
+    expect(paged).not.toBe(snapshot);
+    expect(paged.title).toBe(snapshot.title);
+    expect(paged.bodyHtml).toBe(snapshot.bodyHtml);
+    expect(paged.notices).toEqual(snapshot.notices);
+    expect(paged.html).toContain("Page 1");
+    expect(paged.printCss).toContain('content: "Page " counter(page)');
   });
 });

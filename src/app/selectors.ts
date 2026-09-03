@@ -18,7 +18,7 @@ export function selectActiveTranslation(state: WorkspaceState): Translation {
 }
 
 export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCommandId): boolean {
-  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph" || state.overlay.type === "credits") return false;
+  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph" || state.overlay.type === "pdfExport" || state.overlay.type === "credits") return false;
   if (command === "file.new" || command === "file.open" || command === "file.openRecent") {
     return state.editorReady;
   }

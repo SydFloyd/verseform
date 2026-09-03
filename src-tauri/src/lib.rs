@@ -226,7 +226,7 @@ async fn dbs_get_chapter(
 
 #[tauri::command]
 async fn show_print_dialog(window: WebviewWindow) -> Result<(), String> {
-    output::show_system_print_dialog(window).await
+    output::show_browser_print_dialog(window).await
 }
 
 #[tauri::command]

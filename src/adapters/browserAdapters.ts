@@ -183,12 +183,14 @@ class BrowserDocumentStore implements DocumentStore {
 }
 
 class BrowserOutputAdapter implements OutputAdapter {
-  async print(_snapshot: PrintSnapshot): Promise<void> {}
+  async print(snapshot: PrintSnapshot): Promise<void> {
+    window.dispatchEvent(new CustomEvent("verseform:print-preview", { detail: snapshot }));
+  }
   async savePdf(snapshot: PrintSnapshot, suggestedName: string) {
+    window.dispatchEvent(new CustomEvent("verseform:pdf-export", { detail: snapshot }));
     const mode = new URLSearchParams(window.location.search).get("pdf");
     if (mode === "cancel") return null;
     if (mode === "error") throw new Error("The selected PDF destination is not writable.");
-    window.dispatchEvent(new CustomEvent("verseform:pdf-export", { detail: snapshot }));
     const displayName = suggestedName.toLowerCase().endsWith(".pdf")
       ? suggestedName : `${suggestedName}.pdf`;
     return { path: `browser://pdf/${encodeURIComponent(displayName)}`, displayName };
