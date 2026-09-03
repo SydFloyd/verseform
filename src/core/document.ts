@@ -36,6 +36,8 @@ export type VerseformDocument = {
   content: EditorNode;
 };
 
+export type DocumentIdentity = Pick<VerseformDocument, "title" | "documentId" | "createdAt">;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -142,7 +144,7 @@ export function parseVerseformDocument(serialized: string): VerseformDocument {
 
 export function createVerseformDocument(
   content: EditorNode,
-  previous?: VerseformDocument,
+  previous?: DocumentIdentity,
   now = new Date(),
 ): VerseformDocument {
   if (!isEditorNode(content) || content.type !== "doc") {

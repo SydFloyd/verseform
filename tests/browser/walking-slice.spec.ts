@@ -85,8 +85,7 @@ test("rejects a passage response after the document changes", async ({ page }) =
   await page.keyboard.type("John 3:16 ");
   await page.locator(".scripture-reference").click();
 
-  await editor.click();
-  await page.keyboard.press("End");
+  await editor.press("Control+End");
   await page.keyboard.type("changed");
 
   await expect(page.getByRole("status")).toContainText(

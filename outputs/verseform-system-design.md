@@ -8,7 +8,7 @@ This document owns Verseform's system shape: how product behavior, code boundari
 
 Verseform is a controlled state-transition system inside a thin desktop shell. Deterministic document and scripture rules should be cheap to understand and test. Framework, editor, network, filesystem, clock, and Windows behavior stay at named seams. Application intent enters once, the application kernel decides the next state and required effects, adapters execute only those effects, and results return as identified events. Direct contenteditable input remains inside Tiptap and returns to the kernel as an immutable editor observation; the kernel does not reimplement typing.
 
-The Alpha proved the product loop, but its orchestration is concentrated in `src/ui/App.tsx`: React state and mutable refs jointly own lifecycle facts while UI handlers directly schedule persistence, call providers, validate late responses, and invoke output. The Beta refactor closes that gap without changing document, provider, or native contracts. Splitting JSX alone is not the goal; establishing one control plane is.
+The Alpha proved the product loop. `VFM-090` then moved its orchestration out of `src/ui/App.tsx`: the framework-free application kernel now owns lifecycle facts and decides effects, the controller alone schedules persistence and calls ports, and Tiptap is isolated behind the editor gateway. The migration did not change document, provider, native, output, or visible Alpha contracts. Splitting JSX alone was not the goal; establishing one control plane was.
 
 ## System tower
 
@@ -41,7 +41,7 @@ Dependencies point inward toward contracts and the pure core. The composition ro
 
 - **Shell:** Tauri 2 on Windows, with narrow custom Rust commands for privileged operations.
 - **Application kernel:** A framework-free TypeScript workspace model, closed event/effect unions, pure transition function, and derived selectors. This is the sole owner of cross-cutting application state and async acceptance rules.
-- **UI:** React and TypeScript, kept thin and driven by the kernel's view model. Views dispatch named intent and never call runtime adapters directly.
+- **UI:** React and TypeScript, kept thin and driven by the kernel's view model. Views dispatch named intent and never call runtime adapters directly; their remaining effects are presentation-only focus management.
 - **Editor:** Tiptap on ProseMirror. Its schema, transactions, extensions, and decorations fit the custom citation mark and transient detected-reference styling without building an editor engine.
 - **Core:** Pure TypeScript so parsing, validation, insertion planning, migrations, and attribution share types with the editor and run without a desktop shell.
 - **Testing:** Fast unit and component tests plus a browser-hosted fake-adapter harness. Native Windows evidence is required only for filesystem, recovery, WebView2 output, installation, and other actual platform seams.
@@ -51,7 +51,7 @@ Use open-source Tiptap/ProseMirror capabilities only unless the owner approves a
 
 ## Module ownership
 
-Target source layout for Beta:
+Implemented source layout entering the Beta interaction pass:
 
 ```text
 src/core/        Pure value objects and policies: parser, canon, lookup, document, output
@@ -71,7 +71,7 @@ Begin with four cohesive modules rather than one file per event:
 
 - `workspace.ts` owns `WorkspaceState`, `WorkspaceEvent`, `WorkspaceEffect`, initialization, the pure `transition(state, event)` function, and state invariants.
 - `selectors.ts` derives dirty state, window title, enabled commands, active translation, visible status, and the React-facing view model. Derived facts are never mirrored in mutable refs.
-- `commands.ts` is a closed registry for application commands such as New, Open, Save, Print, Find, Paragraph, and Credits & Licenses. Menus, shortcuts, enablement, and accessible labels consume the same descriptor.
+- `commands.ts` is a closed registry for application commands such as New, Open, Save, Print, Find, Paragraph, and formatting. Menus, shortcuts, enablement, and accessible labels consume the same descriptor. `VFM-100` extends this finite catalog with Credits & Licenses when it adds that capability.
 - `controller.ts` executes effects through injected ports and the editor gateway, stamps result events, owns cancellable timers, and exposes a subscribe/dispatch boundary to React.
 
 This is not event sourcing, Redux, a plugin system, or a generalized workflow engine. Events are ephemeral typed messages; the portable `.verseform` document remains the only user artifact.
@@ -86,10 +86,10 @@ The workspace is one aggregate with explicit, concurrently valid regions:
 | `persistence` | Idle, scheduled recovery/autosave, or an identified explicit/automatic save with its frozen document ID and content hash. |
 | `scripture` | Catalog phase, available translations, selected preference, effective fallback, and at most one identified preview/insertion request. |
 | `output` | Page-number preference and one of idle, preparing a frozen snapshot, printing, or saving PDF. |
-| `overlay` | Exactly one of none, Find, Paragraph, unsaved-navigation confirmation, or Credits & Licenses. Non-modal menus are separate ephemeral view state. |
-| `notice` | The latest user-facing message with severity and operation identity; older completions cannot overwrite a newer message. |
+| `overlay` | Exactly one of none, Find, Paragraph, or unsaved-navigation confirmation. `VFM-100` adds Credits & Licenses to this union. Non-modal menus are separate ephemeral view state. |
+| `notice` | The latest user-facing message and its monotonic identity; identified background completions cannot overwrite a newer message. |
 
-The editor gateway emits immutable editor observations containing revision, content hash, selection formatting, and command availability. It accepts a closed set of commands and can freeze one editor snapshot for save/output. Native typing and IME composition apply within Tiptap first, then emit an observation; application and toolbar commands follow the command/event/effect path. This keeps high-frequency editing responsive, keeps ProseMirror positions and transactions in `src/editor/`, and lets the application kernel reason about lifecycle without importing Tiptap.
+The editor gateway emits immutable observations containing the content hash, whether the completed transaction changed the document, selection formatting, and command availability. The kernel alone advances the editor revision. Observations cross a microtask boundary so ProseMirror completes selection handling before React renders the result. The gateway accepts a closed instruction union and can freeze one editor snapshot for save/output. Native typing and IME composition apply within Tiptap first, then emit an observation; application and toolbar commands follow the command/event/effect path. This keeps high-frequency editing responsive, keeps ProseMirror positions and transactions in `src/editor/`, and lets the application kernel reason about lifecycle without importing Tiptap.
 
 Every asynchronous effect carries an `OperationStamp`: monotonic operation ID plus the relevant document ID, revision, snapshot hash, and translation ID. A result event is accepted only if its stamp still matches the region that requested it. Lookup freshness additionally rechecks the exact source text before insertion. Cancellation is an optimization; identity validation is the correctness boundary.
 
@@ -108,7 +108,7 @@ command or external event
   → visible UI and executable assertion
 ```
 
-The browser harness may expose a read-only, versioned diagnostic snapshot containing region phases, operation IDs, revisions, hashes, selected/effective translation, enabled commands, and pending effects. It must omit document text, arbitrary paths, provider payloads, and credentials; it is absent from the production Tauri composition. This replaces DOM inference for orchestration tests without becoming telemetry or persisted application state.
+The browser harness exposes the frozen, versioned `window.__VERSEFORM_DIAGNOSTICS__` snapshot containing region phases, operation IDs, revision and hashes, effective translation, and enabled commands. It omits document text, arbitrary paths, provider payloads, and credentials and is absent from the production Tauri composition. A browser test verifies those properties. This replaces DOM inference for orchestration tests without becoming telemetry or persisted application state.
 
 The command registry and diagnostic schema are finite product contracts. Do not add dynamic registration, reflection, remote control, or production logging infrastructure.
 
@@ -213,13 +213,13 @@ Every defect should leave a regression test at the cheapest layer that can truth
 
 ## Refactor method
 
-Use a strangler sequence around the already verified Alpha behavior:
+`VFM-090` applied this strangler sequence around the verified Alpha behavior; keep it as the rule for any later control-plane migration:
 
-1. Freeze the current browser cases as parity evidence and introduce the workspace types, reducer, selectors, and fake scheduler without changing rendered behavior.
+1. Preserve the browser cases as parity evidence and introduce workspace types, reducer, selectors, and a fake scheduler without changing rendered behavior.
 2. Route one complete flow at a time through the kernel: document/persistence first, scripture second, output/overlays/commands third. A migrated flow can no longer call a runtime adapter from React.
-3. Introduce the editor gateway at the point where a migrated flow needs an editor snapshot or command. Do not make Tiptap JSON application state or recreate ProseMirror.
+3. Introduce the editor gateway where a migrated flow needs an editor snapshot or instruction. Do not make Tiptap JSON application state or recreate ProseMirror.
 4. Delete superseded React refs, booleans, effects, and handlers in the same flow's change; do not leave dual control paths.
-5. Split the now-passive UI by interaction surface only after orchestration has moved. Component boundaries follow stable view-model and intent contracts.
+5. Split the passive UI by interaction surface only after orchestration has moved. Component boundaries follow stable view-model and intent contracts.
 
 Do not change the `.verseform` schema, DBS/WEB contracts, native file commands, output semantics, or visible Alpha behavior during the kernel refactor. Do not add a state-management dependency unless the pure TypeScript design proves insufficient. Each commit must leave the app runnable and the migrated vertical flow proved.
 
