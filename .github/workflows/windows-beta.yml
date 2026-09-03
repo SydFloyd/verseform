@@ -40,8 +40,16 @@ jobs:
         run: npx playwright test tests/browser/alpha-hardening.spec.ts
       - name: Run Beta stabilization journeys
         run: npx playwright test tests/browser/beta-stabilization.spec.ts
-      - name: Run Beta UI journeys
-        run: npx playwright test tests/browser/beta-ui.spec.ts
+      - name: Prove Beta UI geometry
+        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps compact control groups"
+      - name: Prove quiet command feedback
+        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps command buttons quiet"
+      - name: Prove sticky writing controls
+        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps the command deck available"
+      - name: Prove translation picker
+        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "shows the translation abbreviation"
+      - name: Prove Credits and Licenses
+        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "opens complete local credits"
       - name: Run editing lifecycle journeys
         run: npx playwright test tests/browser/editing-lifecycle.spec.ts
       - name: Run kernel journeys
