@@ -1,4 +1,8 @@
 export const CURRENT_SCHEMA_VERSION = 2 as const;
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+export const MAX_DOCUMENT_TEXT_CHARACTERS = 1_000_000;
+export const MAX_DOCUMENT_NODES = 50_000;
+export const MAX_DOCUMENT_DEPTH = 64;
 
 export type EditorMark = {
   type: string;
@@ -37,26 +41,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isEditorNode(value: unknown): value is EditorNode {
-  if (!isRecord(value) || typeof value.type !== "string") return false;
-  if (value.text !== undefined && typeof value.text !== "string") return false;
-  if (value.attrs !== undefined && !isRecord(value.attrs)) return false;
-  if (
-    value.content !== undefined &&
-    (!Array.isArray(value.content) || !value.content.every(isEditorNode))
-  ) {
-    return false;
-  }
-  if (
-    value.marks !== undefined &&
-    (!Array.isArray(value.marks) ||
-      !value.marks.every(
-        (mark) =>
-          isRecord(mark) &&
-          typeof mark.type === "string" &&
-          (mark.attrs === undefined || isRecord(mark.attrs)),
-      ))
-  ) {
-    return false;
+  const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 1 }];
+  let nodeCount = 0;
+  let textCharacters = 0;
+
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (current.depth > MAX_DOCUMENT_DEPTH || !isRecord(current.value)) return false;
+    if (typeof current.value.type !== "string") return false;
+    if (++nodeCount > MAX_DOCUMENT_NODES) return false;
+    if (current.value.type === "text" && typeof current.value.text !== "string") return false;
+    if (current.value.text !== undefined) {
+      if (typeof current.value.text !== "string") return false;
+      textCharacters += current.value.text.length;
+      if (textCharacters > MAX_DOCUMENT_TEXT_CHARACTERS) return false;
+    }
+    if (current.value.attrs !== undefined && !isRecord(current.value.attrs)) return false;
+    if (current.value.content !== undefined) {
+      if (!Array.isArray(current.value.content)) return false;
+      for (let index = current.value.content.length - 1; index >= 0; index -= 1) {
+        pending.push({ value: current.value.content[index], depth: current.depth + 1 });
+      }
+    }
+    if (
+      current.value.marks !== undefined &&
+      (!Array.isArray(current.value.marks) ||
+        !current.value.marks.every(
+          (mark) =>
+            isRecord(mark) &&
+            typeof mark.type === "string" &&
+            (mark.attrs === undefined || isRecord(mark.attrs)),
+        ))
+    ) return false;
   }
   return true;
 }
@@ -112,6 +128,9 @@ export function migrateVerseformDocument(value: unknown): VerseformDocument {
 }
 
 export function parseVerseformDocument(serialized: string): VerseformDocument {
+  if (new TextEncoder().encode(serialized).byteLength > MAX_DOCUMENT_BYTES) {
+    throw new Error("This document exceeds Verseform's 10 MiB limit.");
+  }
   let value: unknown;
   try {
     value = JSON.parse(serialized);
@@ -126,6 +145,9 @@ export function createVerseformDocument(
   previous?: VerseformDocument,
   now = new Date(),
 ): VerseformDocument {
+  if (!isEditorNode(content) || content.type !== "doc") {
+    throw new Error("The document exceeds Verseform's supported size or structure limits.");
+  }
   const timestamp = now.toISOString();
   return {
     format: "verseform",
@@ -142,7 +164,11 @@ export function serializeVerseformDocument(document: VerseformDocument): string 
   if (!isVerseformDocument(document)) {
     throw new Error("Refusing to serialize an invalid Verseform document.");
   }
-  return `${JSON.stringify(document, null, 2)}\n`;
+  const serialized = `${JSON.stringify(document, null, 2)}\n`;
+  if (new TextEncoder().encode(serialized).byteLength > MAX_DOCUMENT_BYTES) {
+    throw new Error("This document exceeds Verseform's 10 MiB limit.");
+  }
+  return serialized;
 }
 
 export function contentHash(content: EditorNode): string {

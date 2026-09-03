@@ -94,7 +94,10 @@ function storageKey(path: string): string {
 }
 
 class BrowserDocumentStore implements DocumentStore {
+  private readonly saveMode = new URLSearchParams(window.location.search).get("save");
+
   async saveAs(document: VerseformDocument, suggestedName: string) {
+    if (this.saveMode === "error") throw new Error("The destination is full or unavailable.");
     const name = suggestedName.toLowerCase().endsWith(".verseform")
       ? suggestedName : `${suggestedName}.verseform`;
     const saved = { path: `browser://documents/${document.documentId}.verseform`, displayName: name };
@@ -104,6 +107,7 @@ class BrowserDocumentStore implements DocumentStore {
   }
 
   async save(path: string, document: VerseformDocument) {
+    if (this.saveMode === "error") throw new Error("The destination is full or unavailable.");
     const recent = readRecent().find((item) => item.path === path);
     if (!path.startsWith("browser://documents/") || !recent) {
       throw new Error("The browser harness refused an ungranted document path.");

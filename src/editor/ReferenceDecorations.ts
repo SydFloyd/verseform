@@ -169,6 +169,11 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
               return false;
             },
             keydown: (_view, event) => {
+              if (event.key === "Escape" && referenceElement(document.activeElement)) {
+                event.preventDefault();
+                options.onLeave();
+                return true;
+              }
               if (event.key !== "Enter" && event.key !== " ") return false;
               const { candidate } = showPreview(document.activeElement);
               if (!candidate) return false;

@@ -22,11 +22,31 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' data:"
+      "capabilities": ["main-capability"],
+      "csp": "default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"]
+    "targets": ["nsis"],
+    "publisher": "Verseform",
+    "category": "Productivity",
+    "shortDescription": "A local-first scripture text editor for Windows",
+    "longDescription": "Write and format local documents, then preview and insert scripture from authorized DBS translations or the bundled World English Bible.",
+    "resources": {
+      "../PRIVACY.md": "legal/PRIVACY.md",
+      "../DEPENDENCY-LICENSES.txt": "legal/DEPENDENCY-LICENSES.txt"
+    },
+    "windows": {
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"]
+      }
+    }
   }
 }

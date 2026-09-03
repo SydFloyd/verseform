@@ -2,6 +2,8 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Minimum core permissions for the Verseform main window.",
+  "local": true,
   "windows": ["main"],
+  "platforms": ["windows"],
   "permissions": ["core:default"]
 }

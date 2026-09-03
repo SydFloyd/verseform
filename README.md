@@ -12,7 +12,9 @@ Verseform is a lightweight, local-first Windows text editor with one-click scrip
 
 ## Current slice
 
-`VFM-050` completes attributed print and PDF output. Verseform freezes the open document into escaped print HTML, repeats “Powered by DBS” and every used translation notice on each Letter page, and optionally numbers pages. Print opens the Windows system print flow; Save PDF uses a native destination dialog and awaits WebView2's direct PDF writer without mutating the document. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and complete bundled World English Bible from `VFM-040` remain the online and explicit offline scripture sources; detection remains entirely local.
+`VFM-060` hardens the Windows beta. Verseform now enforces matching editor/native document bounds, preserves the last good file through interrupted or full-destination writes, provides complete keyboard paths and tested WCAG A/AA semantics, pins a minimal local-only capability and restrictive webview CSP, audits locked dependency licenses/advisories, and produces a per-user NSIS installer with a repeatable install/offline-launch/uninstall smoke. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources; detection remains entirely local.
+
+Read [BETA-RELEASE.md](BETA-RELEASE.md) for supported behavior, keyboard commands, known limits, and the release checklist. [PRIVACY.md](PRIVACY.md) describes exactly what stays local and when the DBS service is contacted.
 
 ## Develop and verify
 
@@ -40,4 +42,11 @@ Build a Windows executable without creating an installer:
 
 ```powershell
 npx tauri build --debug --no-bundle
+```
+
+Build and exercise the per-user Windows installer:
+
+```powershell
+npm run build:desktop
+npm run test:installer
 ```

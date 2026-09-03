@@ -5,6 +5,11 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub const MAX_DOCUMENT_BYTES: u64 = 10 * 1024 * 1024;
+pub const MAX_DOCUMENT_TEXT_CHARACTERS: usize = 1_000_000;
+pub const MAX_DOCUMENT_NODES: usize = 50_000;
+pub const MAX_DOCUMENT_DEPTH: usize = 64;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DocumentEnvelope {
@@ -19,34 +24,56 @@ pub struct DocumentEnvelope {
 }
 
 fn valid_node(value: &Value) -> bool {
-    let Some(node) = value.as_object() else {
-        return false;
-    };
-    let Some(node_type) = node.get("type").and_then(Value::as_str) else {
-        return false;
-    };
-    if node_type == "text" && node.get("text").and_then(Value::as_str).is_none() {
-        return false;
-    }
-    if let Some(content) = node.get("content") {
-        let Some(children) = content.as_array() else {
+    let mut pending = vec![(value, 1_usize)];
+    let mut node_count = 0_usize;
+    let mut text_characters = 0_usize;
+    while let Some((current, depth)) = pending.pop() {
+        let Some(node) = current.as_object() else {
             return false;
         };
-        if !children.iter().all(valid_node) {
+        let Some(node_type) = node.get("type").and_then(Value::as_str) else {
+            return false;
+        };
+        if depth > MAX_DOCUMENT_DEPTH {
             return false;
         }
-    }
-    if let Some(marks) = node.get("marks") {
-        let Some(marks) = marks.as_array() else {
+        node_count += 1;
+        if node_count > MAX_DOCUMENT_NODES {
             return false;
-        };
-        if !marks.iter().all(|mark| {
-            mark.as_object()
-                .and_then(|object| object.get("type"))
-                .and_then(Value::as_str)
-                .is_some()
-        }) {
+        }
+        if node_type == "text" && node.get("text").and_then(Value::as_str).is_none() {
             return false;
+        }
+        if let Some(text) = node.get("text") {
+            let Some(text) = text.as_str() else {
+                return false;
+            };
+            text_characters += text.encode_utf16().count();
+            if text_characters > MAX_DOCUMENT_TEXT_CHARACTERS {
+                return false;
+            }
+        }
+        if node.get("attrs").is_some_and(|attrs| !attrs.is_object()) {
+            return false;
+        }
+        if let Some(content) = node.get("content") {
+            let Some(children) = content.as_array() else {
+                return false;
+            };
+            pending.extend(children.iter().rev().map(|child| (child, depth + 1)));
+        }
+        if let Some(marks) = node.get("marks") {
+            let Some(marks) = marks.as_array() else {
+                return false;
+            };
+            if !marks.iter().all(|mark| {
+                mark.as_object().is_some_and(|object| {
+                    object.get("type").and_then(Value::as_str).is_some()
+                        && object.get("attrs").is_none_or(Value::is_object)
+                })
+            }) {
+                return false;
+            }
         }
     }
     true
@@ -146,7 +173,10 @@ fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     fs::rename(source, destination)
 }
 
-pub fn write_bytes_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
+fn write_bytes_atomic_with<F>(destination: &Path, write: F) -> io::Result<()>
+where
+    F: FnOnce(&mut std::fs::File) -> io::Result<()>,
+{
     let parent = destination
         .parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "destination has no parent"))?;
@@ -176,7 +206,7 @@ pub fn write_bytes_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
     };
 
     let write_result = (|| {
-        file.write_all(bytes)?;
+        write(&mut file)?;
         file.sync_all()?;
         drop(file);
         replace_file(&temporary, destination)
@@ -187,16 +217,26 @@ pub fn write_bytes_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
     write_result
 }
 
+pub fn write_bytes_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
+    write_bytes_atomic_with(destination, |file| file.write_all(bytes))
+}
+
 pub fn save_atomic(destination: &Path, document: &DocumentEnvelope) -> io::Result<()> {
     document.validate_for_save()?;
     let mut serialized = serde_json::to_vec_pretty(document)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     serialized.push(b'\n');
+    if serialized.len() as u64 > MAX_DOCUMENT_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "document exceeds 10 MiB",
+        ));
+    }
     write_bytes_atomic(destination, &serialized)
 }
 
 pub fn open_document(path: &Path) -> io::Result<DocumentEnvelope> {
-    if fs::metadata(path)?.len() > 10 * 1024 * 1024 {
+    if fs::metadata(path)?.len() > MAX_DOCUMENT_BYTES {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "document exceeds 10 MiB",
@@ -207,4 +247,31 @@ pub fn open_document(path: &Path) -> io::Result<DocumentEnvelope> {
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     document.validate_for_open()?;
     Ok(document)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn interrupted_or_full_write_preserves_the_last_good_file_and_cleans_up() {
+        let directory = tempdir().expect("temporary directory");
+        let destination = directory.path().join("kept.verseform");
+        fs::write(&destination, b"accepted work").expect("seed destination");
+
+        let error = write_bytes_atomic_with(&destination, |file| {
+            file.write_all(b"partial replacement")?;
+            Err(io::Error::other("simulated storage full"))
+        })
+        .expect_err("simulated write must fail");
+
+        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert_eq!(fs::read(&destination).unwrap(), b"accepted work");
+        assert_eq!(
+            fs::read_dir(directory.path()).unwrap().count(),
+            1,
+            "failed temporary write must be removed"
+        );
+    }
 }

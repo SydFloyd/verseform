@@ -1,0 +1,39 @@
+name: Windows beta
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-windows-beta:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Audit npm advisories
+        run: npm audit --audit-level=high
+      - name: Audit Rust advisories
+        run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
+      - name: Run regression suite
+        run: npm run check
+      - name: Build NSIS installer
+        run: npm run build:desktop
+      - name: Exercise installer lifecycle
+        run: npm run test:installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verseform-0.1.0-windows-beta
+          path: src-tauri/target/release/bundle/nsis/Verseform_0.1.0_x64-setup.exe
+          if-no-files-found: error
+          retention-days: 14

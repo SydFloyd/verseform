@@ -1,20 +1,20 @@
 # Verseform work state
 
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 ## Now
 
-- Stage: trustworthy attributed print and PDF output is complete.
-- Active item: none.
-- Next item: `VFM-060` — harden and ship the Windows beta.
-- Baseline: `VFM-050` freezes escaped semantic output snapshots, keeps the page-number choice inside the snapshot, repeats the DBS footer and every used translation notice on each Letter page, opens the WebView2 system print UI, and writes PDF only after a native destination dialog. `VFM-040`'s authorized ARC provider and bundled WEB fallback, `VFM-030`'s local reference intelligence, and `VFM-020`'s trustworthy editor/document lifecycle remain intact.
+- Stage: Windows beta hardening and packaging is implemented; clean-runner proof is pending.
+- Active item: `VFM-060` — harden and ship the Windows beta.
+- Next item: none in the current roadmap.
+- Baseline: matching editor/native bounds reject unsupported documents and pastes; interrupted writes preserve the last good file; keyboard and screen-reader paths are hardened; CSP and the local-only Tauri capability are audited; privacy, supported behavior, known limits, and locked dependency licenses are documented; and the per-user NSIS package has passed a local install/offline-launch/uninstall lifecycle without deleting a user document.
 
 ## Last verified
 
-- `npm run check` passed on 2026-09-02: twenty pure/provider tests (plus one intentionally skipped live smoke), fifteen production-browser tests, six native unit tests (plus one intentionally ignored live smoke), and five Windows smoke tests, with clean TypeScript, Rust formatting, and Clippy checks.
-- The three-page Edge acceptance PDF is Letter-sized and its automated PDF.js and pdfplumber checks find complete content, `Page 1` through `Page 3`, `Powered by DBS`, the WEB public-domain notice, and the recorded DBS notice on every page. All three rendered pages passed visual inspection without clipping, overlap, or broken page flow.
-- Browser cases prove cancellation, rejected destinations, provider-free offline output, and frozen output settings preserve the open document. Native tests prove absolute-path and extension confinement; `npm audit` reports zero known vulnerabilities.
-- `npx tauri build --debug --no-bundle` produced `src-tauri/target/debug/verseform.exe` with the WebView2 system-print and direct-PDF commands.
+- `npm run check` passed on 2026-09-03: twenty-one pure/provider tests (plus one intentionally skipped live smoke), twenty production-browser tests, seven native unit tests (plus one intentionally ignored live smoke), and six Windows smoke tests, with clean TypeScript, Rust formatting, Clippy, CSP/capability checks, and 660 locked dependency-license records.
+- The focused browser cases include a zero-violation axe WCAG A/AA scan, skip/focus/dialog/reference keyboard behavior, one-million-character paste rejection, recovery after a simulated full destination, and the complete provider-free offline detect-to-insert/save/reopen/print/PDF flow.
+- `npm audit --audit-level=high` reports zero vulnerabilities. RustSec scanned all 474 locked Rust packages and reports no vulnerabilities; allowed maintenance warnings remain in Tauri's transitive graph, and the reported unsound GTK crate is absent from the Windows target graph.
+- `npm run build:desktop` produced `src-tauri/target/release/bundle/nsis/Verseform_0.1.0_x64-setup.exe`. Two local installer lifecycle runs verified exit code 0 for per-user silent install/uninstall, responsive launch with provider networking blocked, correct Windows registration/removal, and preservation of a user document. `.github/workflows/windows-beta.yml` owns the final fresh-runner proof after push.
 
 ## Handoff rule
 

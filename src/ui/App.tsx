@@ -16,6 +16,7 @@ import { isLookupFresh, type LookupRequest } from "../core/lookup";
 import { buildPrintSnapshot, type PrintSnapshot } from "../core/output";
 import { Citation } from "../editor/Citation";
 import { cleanPastedHtml } from "../editor/cleanPaste";
+import { DocumentLimits } from "../editor/DocumentLimits";
 import {
   FindReplace, findMatches, replaceAllMatches, replaceMatch, setFindState,
 } from "../editor/FindReplace";
@@ -64,6 +65,8 @@ export function App() {
   const hoverHandler = useRef<(candidate: PositionedReference, rect: DOMRect) => void>(() => undefined);
   const leaveHandler = useRef<() => void>(() => undefined);
   const clickHandler = useRef<(candidate: PositionedValidReference) => void>(() => undefined);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const [preview, setPreview] = useState<PreviewState>();
   const [status, setStatus] = useState(runtime.kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready");
   const [pageNumbers, setPageNumbers] = useState(false);
@@ -133,6 +136,9 @@ export function App() {
       TextStyleKit.configure({ lineHeight: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Subscript, Superscript, ParagraphStyle, FindReplace, Citation,
+      DocumentLimits.configure({
+        onLimit: () => setStatus("That change was not applied. Documents are limited to 1,000,000 characters and 50,000 content nodes."),
+      }),
       ReferenceDecorations.configure({
         onHover: (candidate, rect) => hoverHandler.current(candidate, rect),
         onLeave: () => leaveHandler.current(),
@@ -143,7 +149,7 @@ export function App() {
     content: emptyDocument,
     editorProps: {
       attributes: {
-        class: "writing-surface", role: "textbox", "aria-label": "Document editor",
+        id: "document-editor", class: "writing-surface", role: "textbox", "aria-label": "Document editor",
         "aria-multiline": "true", spellcheck: "true",
       },
       transformPastedHTML: cleanPastedHtml,
@@ -361,19 +367,48 @@ export function App() {
   }, [editor, loadOpened, markDirty, refreshRecent, runtime]);
 
   const requestAction = (action: PendingAction) => {
-    if (dirtyRef.current) setPendingAction(action); else void performAction(action);
+    if (dirtyRef.current) {
+      dialogReturnFocus.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement : null;
+      setPendingAction(action);
+    } else void performAction(action);
+  };
+
+  const dismissDialog = () => {
+    setPendingAction(undefined);
+    requestAnimationFrame(() => dialogReturnFocus.current?.focus());
   };
 
   const resolvePending = async (choice: "save" | "discard" | "cancel") => {
     const action = pendingAction;
     if (!action) return;
-    if (choice === "cancel") { setPendingAction(undefined); return; }
+    if (choice === "cancel") { dismissDialog(); return; }
     if (choice === "save" && !(await saveDocument())) return;
     if (choice === "discard" && session.current.document) {
       await runtime.documents.discardRecovery(session.current.document.documentId);
     }
     setPendingAction(undefined);
     await performAction(action);
+  };
+
+  const trapDialogKeys = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      void resolvePending("cancel");
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []);
+    if (!controls.length) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
   };
 
   const freezeOutput = async (): Promise<PrintSnapshot | undefined> => {
@@ -442,6 +477,11 @@ export function App() {
     setFindQuery(query); setFindCount(matches.length);
     setFindIndex(matches.length ? ((index % matches.length) + matches.length) % matches.length : 0);
   };
+  const closeFind = () => {
+    setFindOpen(false);
+    updateFind("");
+    editor?.commands.focus();
+  };
 
   useEffect(() => {
     const documentShortcuts = (event: KeyboardEvent) => {
@@ -483,7 +523,10 @@ export function App() {
   };
   return (
     <>
-      <main className="app-shell">
+      <a className="skip-link" href="#document-editor" onClick={(event) => {
+        event.preventDefault(); editor?.commands.focus();
+      }}>Skip to document editor</a>
+      <main className="app-shell" inert={pendingAction ? true : undefined}>
         <header className="app-header">
           <div><p className="eyebrow">Local-first scripture writing</p><h1>Verseform</h1></div>
           <div className="document-state" aria-label="Current document">
@@ -505,10 +548,10 @@ export function App() {
         </section> : null}
 
         <nav className="toolbar document-toolbar" aria-label="Document actions">
-          <button type="button" onClick={() => requestAction({ type: "new" })}>New</button>
-          <button type="button" onClick={() => requestAction({ type: "open" })}>Open</button>
-          <button type="button" onClick={() => void saveDocument()}>Save</button>
-          <button type="button" onClick={() => void saveDocument(true)}>Save As</button>
+          <button type="button" aria-keyshortcuts="Control+N" onClick={() => requestAction({ type: "new" })}>New</button>
+          <button type="button" aria-keyshortcuts="Control+O" onClick={() => requestAction({ type: "open" })}>Open</button>
+          <button type="button" aria-keyshortcuts="Control+S" onClick={() => void saveDocument()}>Save</button>
+          <button type="button" aria-keyshortcuts="Control+Shift+S" onClick={() => void saveDocument(true)}>Save As</button>
           {recent.length ? <label className="recent-picker">Recent
             <select aria-label="Recent files" value="" onChange={(event) => requestAction({ type: "recent", path: event.target.value })}>
               <option value="">Choose…</option>{recent.map((item) => <option key={item.path} value={item.path}>{item.displayName}</option>)}
@@ -524,7 +567,7 @@ export function App() {
           {catalogOffline ? <span className="offline-badge" role="note">Offline · WEB</span> : null}
           <span className="toolbar-spacer" />
           <label className="page-number-option"><input type="checkbox" checked={pageNumbers} onChange={(event) => setPageNumbers(event.target.checked)} disabled={outputBusy} />Page numbers</label>
-          <button type="button" onClick={() => void print()} disabled={outputBusy}>Print</button>
+          <button type="button" aria-keyshortcuts="Control+P" onClick={() => void print()} disabled={outputBusy}>Print</button>
           <button className="primary-action" type="button" onClick={() => void savePdf()} disabled={outputBusy}>Save PDF</button>
         </nav>
 
@@ -557,13 +600,16 @@ export function App() {
           <label>Paragraph spacing <select aria-label="Paragraph spacing" value={`${editor?.getAttributes(editor?.isActive("heading") ? "heading" : "paragraph").spaceBefore ?? 0},${editor?.getAttributes(editor?.isActive("heading") ? "heading" : "paragraph").spaceAfter ?? 0}`} onChange={(event) => { const [spaceBefore, spaceAfter] = event.target.value.split(",").map(Number); updateBlock({ spaceBefore, spaceAfter }); }}>
             <option value="0,0">None</option><option value="0,8">After 8 pt</option><option value="8,8">Before & after 8 pt</option><option value="12,12">Before & after 12 pt</option>
           </select></label>
-          <button type="button" onClick={() => setFindOpen((value) => !value)}>Find / Replace</button>
+          <button type="button" aria-keyshortcuts="Control+F Control+H" onClick={() => {
+            setFindOpen((value) => !value);
+            if (!findOpen) requestAnimationFrame(() => document.getElementById("find-query")?.focus());
+          }}>Find / Replace</button>
           <button type="button" onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()}>Undo</button>
           <button type="button" onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()}>Redo</button>
         </nav>
 
         {findOpen ? <section className="find-panel" aria-label="Find and replace" onKeyDown={(event) => {
-          if (event.key === "Escape") { setFindOpen(false); updateFind(""); editor?.commands.focus(); }
+          if (event.key === "Escape") closeFind();
         }}>
           <label>Find <input id="find-query" value={findQuery} onChange={(event) => updateFind(event.target.value)} /></label>
           <label>Replace <input value={replacement} onChange={(event) => setReplacement(event.target.value)} /></label>
@@ -572,17 +618,17 @@ export function App() {
           <button type="button" onClick={() => { if (!editor) return; const match = findMatches(editor, findQuery)[findIndex]; if (match) replaceMatch(editor, match, replacement); updateFind(findQuery, findIndex); }} disabled={!findCount}>Replace</button>
           <button type="button" onClick={() => { if (!editor) return; const count = replaceAllMatches(editor, findQuery, replacement); updateFind(findQuery); setStatus(`Replaced ${count} occurrence${count === 1 ? "" : "s"}.`); }} disabled={!findCount}>Replace all</button>
           <span aria-live="polite">{findCount ? `${findIndex + 1} of ${findCount}` : "No matches"}</span>
-          <button type="button" aria-label="Close find and replace" onClick={() => { setFindOpen(false); updateFind(""); }}>×</button>
+          <button type="button" aria-label="Close find and replace" onClick={closeFind}>×</button>
         </section> : null}
 
         <section className="paper" data-testid="editor"><EditorContent editor={editor} /><p className="editor-hint">Try <kbd>John 3:16</kbd> followed by a space.</p></section>
         <p className="status-line" role="status" aria-live="polite">{status}</p>
 
         {printSnapshot ? <section className="output-preview" aria-labelledby="output-heading"><div><p className="eyebrow">Immutable output snapshot</p><h2 id="output-heading">Print / PDF preview</h2></div><iframe title="Print/PDF preview" srcDoc={printSnapshot.html} data-testid="print-preview" /></section> : null}
-        {preview ? <aside className="passage-preview" role="tooltip" data-reference-kind={preview.candidate.kind} style={{ top: preview.top, left: preview.left }}><strong>{preview.candidate.display}</strong>{preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{preview.loading ? <p>Loading preview…</p> : null}{preview.passage ? <><p>{preview.passage.text}</p><small>{preview.passage.translationName}{preview.passage.cached ? " · local cache" : ""}</small>{preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{preview.error ? <p>{preview.error}</p> : null}</aside> : null}
+        {preview ? <aside className="passage-preview" role="tooltip" aria-live="polite" aria-atomic="true" data-reference-kind={preview.candidate.kind} style={{ top: preview.top, left: preview.left }}><strong>{preview.candidate.display}</strong>{preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{preview.loading ? <p>Loading preview…</p> : null}{preview.passage ? <><p>{preview.passage.text}</p><small>{preview.passage.translationName}{preview.passage.cached ? " · local cache" : ""}</small>{preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{preview.error ? <p>{preview.error}</p> : null}</aside> : null}
       </main>
 
-      {pendingAction ? <div className="modal-backdrop"><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" onKeyDown={(event) => { if (event.key === "Escape") void resolvePending("cancel"); }}><h2 id="unsaved-heading">Save changes?</h2><p>Your latest writing has not been saved to the document.</p><div><button autoFocus type="button" onClick={() => void resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => void resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => void resolvePending("save")}>Save</button></div></section></div> : null}
+      {pendingAction ? <div className="modal-backdrop"><section ref={dialogRef} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description" onKeyDown={trapDialogKeys}><h2 id="unsaved-heading">Save changes?</h2><p id="unsaved-description">Your latest writing has not been saved to the document.</p><div><button autoFocus type="button" onClick={() => void resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => void resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => void resolvePending("save")}>Save</button></div></section></div> : null}
 
       {printSnapshot ? <><style>{printSnapshot.printCss}</style><article className="print-document print-surface" aria-hidden="true"><main dangerouslySetInnerHTML={{ __html: printSnapshot.bodyHtml }} /><footer className="print-footer"><strong>Powered by DBS</strong>{printSnapshot.notices.map((notice) => <p className="translation-notice" key={notice}>{notice}</p>)}</footer>{printSnapshot.pageNumbers ? <div className="preview-page-number">Page 1</div> : null}</article></> : null}
     </>

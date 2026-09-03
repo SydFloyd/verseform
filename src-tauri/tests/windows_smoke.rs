@@ -59,6 +59,18 @@ fn invalid_save_cannot_overwrite_the_last_good_document() {
 }
 
 #[test]
+fn oversized_save_cannot_overwrite_the_last_good_document() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("walking.verseform");
+    let accepted = fixture("accepted work");
+    save_atomic(&path, &accepted).expect("save accepted document");
+
+    let oversized_text = "x".repeat(1_000_001);
+    assert!(save_atomic(&path, &fixture(&oversized_text)).is_err());
+    assert_eq!(open_document(&path).expect("original survives"), accepted);
+}
+
+#[test]
 fn corrupt_and_newer_documents_fail_without_changing_their_bytes() {
     let directory = tempdir().expect("temporary directory");
     let corrupt_path = directory.path().join("corrupt.verseform");

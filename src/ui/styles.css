@@ -21,6 +21,24 @@ body {
     #e9e3d6;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.5rem;
+  left: 0.5rem;
+  transform: translateY(-200%);
+  border-radius: 0.4rem;
+  padding: 0.65rem 0.85rem;
+  color: #fffdf8;
+  background: #3f3122;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid #e3a76f;
+  outline-offset: 2px;
+}
+
 button,
 input,
 select {
@@ -327,7 +345,7 @@ button:disabled {
   right: 1rem;
   bottom: 0.85rem;
   margin: 0;
-  color: #8b8172;
+  color: #6f6556;
   font-size: 0.78rem;
 }
 

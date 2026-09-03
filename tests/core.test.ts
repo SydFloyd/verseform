@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createVerseformDocument,
+  MAX_DOCUMENT_DEPTH,
+  MAX_DOCUMENT_TEXT_CHARACTERS,
   parseVerseformDocument,
   serializeVerseformDocument,
   type EditorNode,
@@ -140,6 +142,24 @@ describe("portable documents and output", () => {
     expect(migrated).toMatchObject({ schemaVersion: 2, title: "Untitled" });
     expect(() => parseVerseformDocument(JSON.stringify({ ...formattedFixture, schemaVersion: 99 })))
       .toThrow(/newer Verseform version/);
+  });
+
+  it("rejects oversized text and excessive nesting before persistence", () => {
+    const oversized: EditorNode = {
+      type: "doc",
+      content: [{
+        type: "paragraph",
+        content: [{ type: "text", text: "x".repeat(MAX_DOCUMENT_TEXT_CHARACTERS + 1) }],
+      }],
+    };
+    expect(() => createVerseformDocument(oversized)).toThrow(/size or structure limits/);
+
+    let nested: EditorNode = { type: "paragraph" };
+    for (let depth = 0; depth < MAX_DOCUMENT_DEPTH; depth += 1) {
+      nested = { type: "blockquote", content: [nested] };
+    }
+    expect(() => createVerseformDocument({ type: "doc", content: [nested] }))
+      .toThrow(/size or structure limits/);
   });
 
   it("round-trips every formatting class and preserves it in print HTML", () => {
