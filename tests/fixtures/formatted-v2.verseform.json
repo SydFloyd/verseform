@@ -1,0 +1,31 @@
+{
+  "format": "verseform",
+  "schemaVersion": 2,
+  "title": "Formatting proof",
+  "documentId": "vfm-020-formatted-fixture",
+  "createdAt": "2026-09-02T12:00:00.000Z",
+  "updatedAt": "2026-09-02T12:00:01.000Z",
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": { "textAlign": "justify", "indent": 2, "lineHeight": "2", "spaceBefore": 8, "spaceAfter": 12 },
+        "content": [
+          { "type": "text", "text": "Bold", "marks": [{ "type": "bold" }] },
+          { "type": "text", "text": " italic", "marks": [{ "type": "italic" }] },
+          { "type": "text", "text": " underline", "marks": [{ "type": "underline" }] },
+          { "type": "text", "text": " strike", "marks": [{ "type": "strike" }] },
+          { "type": "text", "text": " H2", "marks": [{ "type": "subscript" }] },
+          { "type": "text", "text": " x2", "marks": [{ "type": "superscript" }] },
+          { "type": "text", "text": " styled", "marks": [{ "type": "textStyle", "attrs": { "fontFamily": "Georgia", "fontSize": "18pt", "color": "#123456", "backgroundColor": "#fff0a8" } }] },
+          { "type": "text", "text": " link", "marks": [{ "type": "link", "attrs": { "href": "https://example.com" } }] },
+          { "type": "text", "text": " unsafe", "marks": [{ "type": "link", "attrs": { "href": "javascript:alert(1)" } }] },
+          { "type": "text", "text": " (John 3:16, WEB)", "marks": [{ "type": "citation", "attrs": { "reference": "John 3:16", "translationId": "WEB" } }] }
+        ]
+      },
+      { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Bullet" }] }] }] },
+      { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Numbered" }] }] }] }
+    ]
+  }
+}

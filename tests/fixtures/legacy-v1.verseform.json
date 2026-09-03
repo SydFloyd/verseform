@@ -1,0 +1,8 @@
+{
+  "format": "verseform",
+  "schemaVersion": 1,
+  "documentId": "vfm-010-legacy-fixture",
+  "createdAt": "2026-09-01T12:00:00.000Z",
+  "updatedAt": "2026-09-01T12:00:01.000Z",
+  "content": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Legacy writing" }] }] }
+}

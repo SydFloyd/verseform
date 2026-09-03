@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "translationId": "WEB",
+  "expectedBooks": 66,
+  "expectedChapters": 1189,
+  "exact": [
+    { "input": "See (John 3:16), please. ", "bookId": "JHN", "display": "John 3:16" },
+    { "input": "Gen. 1:1. ", "bookId": "GEN", "display": "Genesis 1:1" },
+    { "input": "First Corinthians 13:4-7; ", "bookId": "1CO", "display": "1 Corinthians 13:4-7" },
+    { "input": "1Cor 13:4–7! ", "bookId": "1CO", "display": "1 Corinthians 13:4-7" },
+    { "input": "Song of Songs 8:14) ", "bookId": "SNG", "display": "Song of Solomon 8:14" },
+    { "input": "Rev 22:21? ", "bookId": "REV", "display": "Revelation 22:21" }
+  ],
+  "fuzzyAccepted": [
+    { "input": "Gensis 1:1 ", "bookId": "GEN" },
+    { "input": "Deutronomy 6:4 ", "bookId": "DEU" },
+    { "input": "Ecclesastes 3:1 ", "bookId": "ECC" },
+    { "input": "Habakuk 2:4 ", "bookId": "HAB" },
+    { "input": "Zachariah 4:6 ", "bookId": "ZEC" },
+    { "input": "Mathew 5:9 ", "bookId": "MAT" },
+    { "input": "1 Corinthans 13:4 ", "bookId": "1CO" },
+    { "input": "2 Thessalonans 3:16 ", "bookId": "2TH" },
+    { "input": "Revelaton 22:21 ", "bookId": "REV" }
+  ],
+  "fuzzyRejected": [
+    "Jhna 1:1 ",
+    "Mar 2:3 ",
+    "Corinthians 13:4 ",
+    "Samuell 1:1 ",
+    "Unrelated 3:16 "
+  ],
+  "invalid": [
+    { "input": "John 22:1 ", "code": "chapter_out_of_range" },
+    { "input": "John 3:37 ", "code": "verse_out_of_range" },
+    { "input": "John 3:18-16 ", "code": "range_reversed" },
+    { "input": "John 3:35-37 ", "code": "range_end_out_of_range" }
+  ],
+  "falsePositives": [
+    "John 3:16",
+    "The ratio 3:16 was recorded. ",
+    "This is 3:4 of the draft. ",
+    "Version 2.0.1:4 is installed. ",
+    "Visit https://example.test/John 3:16 for details. ",
+    "john3:16 is a compact identifier. ",
+    "We finished phase Mar 2:3 yesterday. "
+  ]
+}

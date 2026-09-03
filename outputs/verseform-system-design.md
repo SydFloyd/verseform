@@ -75,9 +75,9 @@ The scanner runs only over changed text blocks after delimiters. It recognizes a
 
 ### Scripture provider
 
-Every provider implements the same small contract: list authorized translations, describe canon/attribution metadata, and fetch a normalized passage. Fake, bundled WEB, and DBS adapters share contract tests.
+Every provider implements the same small contract: list authorized translations, describe canon/attribution metadata, and fetch a normalized passage. Fake, bundled WEB, and DBS adapters share contract tests. Production DBS requests use the public ARC JSON endpoints through dedicated Tauri commands; the privileged webview never loads remote code or provider HTML.
 
-DBS responses are size-bounded, schema-validated, normalized to plain text, and treated as untrusted. Requests support timeout and cancellation. Persistent caching of copyrighted passage text is disabled unless DBS explicitly permits it; bounded in-memory deduplication is allowed.
+DBS responses are redirect-, time-, size-, and schema-bounded, normalized to plain text, and treated as untrusted. Consumer requests support cancellation; native requests have an eight-second deadline. With the owner's confirmed DBS permission, successful catalogs and chapters use a versioned app-local cache; chapters are capped at 32 MB/192 files and catalogs at one 8 MB response. Fresh catalog/chapter lifetimes are one and seven days respectively; a stale catalog response selects bundled WEB, and a failed uncached passage lookup visibly switches to WEB before any insertion.
 
 ### Output
 

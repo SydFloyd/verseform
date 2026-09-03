@@ -4,10 +4,13 @@ dist/
 coverage/
 playwright-report/
 test-results/
+artifacts/
+*.tsbuildinfo
 
 # Rust and Tauri
 target/
 src-tauri/target/
+src-tauri/gen/
 
 # Local configuration and secrets
 .env
