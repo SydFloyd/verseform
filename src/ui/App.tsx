@@ -67,8 +67,9 @@ export function App() {
   const clickHandler = useRef<(candidate: PositionedValidReference) => void>(() => undefined);
   const dialogRef = useRef<HTMLElement | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
+  const statusRevision = useRef(0);
   const [preview, setPreview] = useState<PreviewState>();
-  const [status, setStatus] = useState(runtime.kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready");
+  const [status, setStatusValue] = useState(runtime.kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready");
   const [pageNumbers, setPageNumbers] = useState(false);
   const [printSnapshot, setPrintSnapshot] = useState<PrintSnapshot>();
   const [outputBusy, setOutputBusy] = useState(false);
@@ -86,6 +87,11 @@ export function App() {
   const [translationId, setTranslationId] = useState(WEB_TRANSLATION.id);
   const [catalogOffline, setCatalogOffline] = useState(false);
 
+  const setStatus = useCallback((message: string) => {
+    statusRevision.current += 1;
+    setStatusValue(message);
+  }, []);
+
   const markDirty = useCallback((value: boolean) => {
     dirtyRef.current = value;
     setDirty(value);
@@ -98,6 +104,7 @@ export function App() {
 
   const queuePersistence = useCallback((editor: Editor) => {
     const operation = ++persistenceOperation.current;
+    const queuedStatusRevision = statusRevision.current;
     window.clearTimeout(recoveryTimer.current);
     window.clearTimeout(autosaveTimer.current);
     recoveryTimer.current = window.setTimeout(() => {
@@ -107,8 +114,15 @@ export function App() {
       void runtime.documents.writeRecovery({
         document, sourcePath: session.current.path, savedContentHash: session.current.savedHash,
         contentHash: hash, capturedAtMs: Date.now(),
-      }).then(() => { if (operation === persistenceOperation.current) setStatus("Recovery copy saved locally."); })
-        .catch((error: unknown) => { if (operation === persistenceOperation.current) setStatus(`Recovery failed: ${errorMessage(error)}`); });
+      }).then(() => {
+        if (operation === persistenceOperation.current && queuedStatusRevision === statusRevision.current) {
+          setStatusValue("Recovery copy saved locally.");
+        }
+      }).catch((error: unknown) => {
+        if (operation === persistenceOperation.current && queuedStatusRevision === statusRevision.current) {
+          setStatusValue(`Recovery failed: ${errorMessage(error)}`);
+        }
+      });
     }, 250);
 
     if (session.current.path) {
@@ -124,8 +138,10 @@ export function App() {
           if (contentHash(editor.getJSON() as EditorNode) === hash) markDirty(false);
           void runtime.documents.discardRecovery(document.documentId);
           void refreshRecent();
-          setStatus(`Autosaved ${saved.displayName}.`);
-        }).catch((error: unknown) => setStatus(`Autosave failed: ${errorMessage(error)}`));
+          if (queuedStatusRevision === statusRevision.current) setStatusValue(`Autosaved ${saved.displayName}.`);
+        }).catch((error: unknown) => {
+          if (queuedStatusRevision === statusRevision.current) setStatusValue(`Autosave failed: ${errorMessage(error)}`);
+        });
       }, 1100);
     }
   }, [markDirty, refreshRecent, runtime]);
