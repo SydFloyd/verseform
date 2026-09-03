@@ -32,10 +32,16 @@ jobs:
         run: npm ci
       - name: Audit npm advisories
         run: npm audit --audit-level=high
+      - name: Run TypeScript and pure application checks
+        run: npm run typecheck && npm run test
+      - name: Run production-browser journeys
+        run: npm run test:e2e
+      - name: Run native and Windows checks
+        run: npm run check:native
+      - name: Validate release boundaries and licenses
+        run: npm run audit:release
       - name: Audit Rust advisories
         run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
-      - name: Run regression and stabilization suite
-        run: npm run check
       - name: Build Beta NSIS installer
         run: npm run build:desktop
       - name: Exercise Alpha-to-Beta upgrade lifecycle
