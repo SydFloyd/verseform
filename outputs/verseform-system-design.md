@@ -6,32 +6,42 @@ This document owns Verseform's system shape: how product behavior, code boundari
 
 ## Design stance
 
-Verseform is a functional core inside a thin desktop shell. Deterministic document and scripture rules should be cheap to understand and test. Framework, editor, network, filesystem, and Windows behavior stay at named seams. The first implementation must prove the complete product loop before the feature surface expands.
+Verseform is a controlled state-transition system inside a thin desktop shell. Deterministic document and scripture rules should be cheap to understand and test. Framework, editor, network, filesystem, clock, and Windows behavior stay at named seams. Application intent enters once, the application kernel decides the next state and required effects, adapters execute only those effects, and results return as identified events. Direct contenteditable input remains inside Tiptap and returns to the kernel as an immutable editor observation; the kernel does not reimplement typing.
+
+The Alpha proved the product loop, but its orchestration is concentrated in `src/ui/App.tsx`: React state and mutable refs jointly own lifecycle facts while UI handlers directly schedule persistence, call providers, validate late responses, and invoke output. The Beta refactor closes that gap without changing document, provider, or native contracts. Splitting JSX alone is not the goal; establishing one control plane is.
 
 ## System tower
 
 ```text
-React views and toolbar
-        │ user intent / view state
-Tiptap editor integration ───── transient reference decorations
-        │ editor commands              │ pure scan results
-Application use cases ─────────────────┤
-        │ ports                        │
-Pure TypeScript core: reference parser, canon validation,
-citation/insertion rules, document envelope, migrations, attribution
-        │                              │
-Native adapters                   Scripture adapters
-Tauri commands                    DBS HTTP / bundled WEB / fakes
-files, recovery, profile,         translation policy and validation
-WebView2 print/PDF
+User ── menu/toolbar intent ──► React UI ── WorkspaceEvent ──┐
+  └── typing / IME ──► Tiptap editor gateway ─ EditorObserved ┤
+Windows / adapter result ──────────────── WorkspaceEvent ─────┘
+                                                             ▼
+Application kernel ── pure transition ──► canonical workspace state
+        │                                      │
+        │ closed WorkspaceEffect               └─ selectors ──► React UI
+        ▼
+Effect controller ───────► editor commands / immutable snapshots
+        │
+        └─► Runtime ports
+            documents · recovery · preferences · scripture
+            output · window · scheduler · approved external links
+                    │
+                    ▼
+            Native/browser adapters
+            Tauri commands · DBS/WEB · WebView2 · deterministic fakes
+
+Pure core beneath every layer
+references · canon · lookup freshness · document envelope · output · attribution
 ```
 
-Dependencies point toward the pure core. The composition root is the only place that knows which concrete adapters are active.
+Dependencies point inward toward contracts and the pure core. The composition root is the only place that knows which concrete adapters are active. No view imports a concrete adapter, and no adapter decides product state.
 
 ## Chosen shape
 
 - **Shell:** Tauri 2 on Windows, with narrow custom Rust commands for privileged operations.
-- **UI:** React and TypeScript, kept thin and driven by explicit application states.
+- **Application kernel:** A framework-free TypeScript workspace model, closed event/effect unions, pure transition function, and derived selectors. This is the sole owner of cross-cutting application state and async acceptance rules.
+- **UI:** React and TypeScript, kept thin and driven by the kernel's view model. Views dispatch named intent and never call runtime adapters directly.
 - **Editor:** Tiptap on ProseMirror. Its schema, transactions, extensions, and decorations fit the custom citation mark and transient detected-reference styling without building an editor engine.
 - **Core:** Pure TypeScript so parsing, validation, insertion planning, migrations, and attribution share types with the editor and run without a desktop shell.
 - **Testing:** Fast unit and component tests plus a browser-hosted fake-adapter harness. Native Windows evidence is required only for filesystem, recovery, WebView2 output, installation, and other actual platform seams.
@@ -41,19 +51,66 @@ Use open-source Tiptap/ProseMirror capabilities only unless the owner approves a
 
 ## Module ownership
 
-Suggested source layout after bootstrap:
+Target source layout for Beta:
 
 ```text
-src/core/        Pure schemas, parser, canon rules, citations, migrations
-src/app/         Use cases, ports, and explicit state machines
-src/editor/      Tiptap schema, commands, decorations, selection bridge
+src/core/        Pure value objects and policies: parser, canon, lookup, document, output
+src/app/         Workspace state/events/effects/selectors, command catalog, controller, ports
+src/editor/      Tiptap schema/extensions plus the application-facing editor gateway
 src/adapters/    DBS, WEB, fake providers, browser test adapters
-src/ui/          React views and accessible controls
+src/ui/          Stateless shell, menus/toolbars, document surface, dialogs, styles
 src-tauri/       Composition, narrow native commands, Windows integration
 tests/fixtures/  Stable references, provider contracts, documents, output cases
 ```
 
 Do not create pass-through layers. A module exists only when it owns a rule, a boundary, or a testable adaptation.
+
+### Application kernel
+
+Begin with four cohesive modules rather than one file per event:
+
+- `workspace.ts` owns `WorkspaceState`, `WorkspaceEvent`, `WorkspaceEffect`, initialization, the pure `transition(state, event)` function, and state invariants.
+- `selectors.ts` derives dirty state, window title, enabled commands, active translation, visible status, and the React-facing view model. Derived facts are never mirrored in mutable refs.
+- `commands.ts` is a closed registry for application commands such as New, Open, Save, Print, Find, Paragraph, and Credits & Licenses. Menus, shortcuts, enablement, and accessible labels consume the same descriptor.
+- `controller.ts` executes effects through injected ports and the editor gateway, stamps result events, owns cancellable timers, and exposes a subscribe/dispatch boundary to React.
+
+This is not event sourcing, Redux, a plugin system, or a generalized workflow engine. Events are ephemeral typed messages; the portable `.verseform` document remains the only user artifact.
+
+### Canonical workspace state
+
+The workspace is one aggregate with explicit, concurrently valid regions:
+
+| Region | Sole owner and truth |
+|---|---|
+| `document` | Document identity, optional granted path, display name, editor revision, current content hash, and saved content hash. `dirty` is derived by comparing hashes. Tiptap alone owns the live editable tree. |
+| `persistence` | Idle, scheduled recovery/autosave, or an identified explicit/automatic save with its frozen document ID and content hash. |
+| `scripture` | Catalog phase, available translations, selected preference, effective fallback, and at most one identified preview/insertion request. |
+| `output` | Page-number preference and one of idle, preparing a frozen snapshot, printing, or saving PDF. |
+| `overlay` | Exactly one of none, Find, Paragraph, unsaved-navigation confirmation, or Credits & Licenses. Non-modal menus are separate ephemeral view state. |
+| `notice` | The latest user-facing message with severity and operation identity; older completions cannot overwrite a newer message. |
+
+The editor gateway emits immutable editor observations containing revision, content hash, selection formatting, and command availability. It accepts a closed set of commands and can freeze one editor snapshot for save/output. Native typing and IME composition apply within Tiptap first, then emit an observation; application and toolbar commands follow the command/event/effect path. This keeps high-frequency editing responsive, keeps ProseMirror positions and transactions in `src/editor/`, and lets the application kernel reason about lifecycle without importing Tiptap.
+
+Every asynchronous effect carries an `OperationStamp`: monotonic operation ID plus the relevant document ID, revision, snapshot hash, and translation ID. A result event is accepted only if its stamp still matches the region that requested it. Lookup freshness additionally rechecks the exact source text before insertion. Cancellation is an optimization; identity validation is the correctness boundary.
+
+### Control and diagnostic contract
+
+For agent and test legibility, every application capability follows one traceable path:
+
+```text
+command or external event
+  → WorkspaceEvent
+  → transition
+  → WorkspaceEffect (if any)
+  → one port/editor command
+  → stamped result event
+  → selector
+  → visible UI and executable assertion
+```
+
+The browser harness may expose a read-only, versioned diagnostic snapshot containing region phases, operation IDs, revisions, hashes, selected/effective translation, enabled commands, and pending effects. It must omit document text, arbitrary paths, provider payloads, and credentials; it is absent from the production Tauri composition. This replaces DOM inference for orchestration tests without becoming telemetry or persisted application state.
+
+The command registry and diagnostic schema are finite product contracts. Do not add dynamic registration, reflection, remote control, or production logging infrastructure.
 
 ## Core contracts
 
@@ -85,27 +142,35 @@ Printing and PDF export operate on an immutable document snapshot, not the live 
 
 The output adapter is the only platform-specific seam. The browser harness generates and text-extracts a representative multi-page Edge PDF; native checks cover WebView2 availability and destination validation.
 
+### Beta interaction surface
+
+The native window title is the visible application identity and carries the document name and unsaved state. The content view begins with a compact menu/command row, a compact formatting row, and then the writing surface; it does not repeat a visible Verseform wordmark. Removing the visual heading must not remove the window's accessible name, landmark labels, or skip-to-editor path.
+
+File owns document and output commands. Edit owns undo/redo, Find, and Paragraph. Help owns **Credits & Licenses**. Formatting controls retain the flat Alpha language but use shared size, gap, border, focus, active, and color tokens so tightening the chrome cannot produce inconsistent targets or arbitrary exceptions. A finite command registry supplies labels, shortcuts, enablement, and actions to menus and global keyboard handling.
+
+Credits & Licenses is local application content. It shows the installed Verseform version, a clear thank-you and scripture-service credit to Digital Bible Society, the bundled WEB provenance, catalog-supplied notice for the effective translation, and third-party software license access. Provider metadata is plain text. External DBS or provenance links use a dedicated allowlisted adapter and open outside the privileged webview; the view makes no claim of DBS endorsement and requires no network request to open.
+
 ## Critical flows
 
 ### Detect, preview, insert
 
-1. A delimiter transaction identifies the changed text block.
-2. The pure scanner returns valid and invalid candidates.
-3. The editor maps candidates to transient decorations.
-4. Hover requests a preview; click requests the passage if needed.
-5. The use case records the reference, translation, range, and document revision.
-6. On response, it verifies that the source range and text still match.
-7. One editor transaction replaces the reference and applies citation metadata, producing one undo step.
+1. A delimiter transaction identifies the changed text block; the editor gateway emits a new revision and content hash.
+2. The pure scanner returns valid and invalid candidates, and the editor maps them to transient decorations.
+3. Hover/click dispatches a workspace event containing the candidate and anchor or source range.
+4. The kernel emits one provider effect stamped with the operation, document, revision, source text, and effective translation.
+5. The controller returns success, fallback, cancellation, or failure as a stamped event.
+6. The kernel rejects any result that no longer owns the scripture region; insertion additionally rechecks the exact source range and text through the editor gateway.
+7. One editor command replaces the reference and applies citation metadata in one transaction, producing one undo step; the resulting editor observation becomes the new document truth.
 
 Stale, cancelled, malformed, unauthorized, or offline responses cannot mutate the document. Offline fallback to WEB is explicit before insertion, so the citation always names the text actually inserted.
 
 ### Save and recover
 
-Editor transactions set dirty state and schedule a recovery snapshot. Explicit Save validates one immutable snapshot and atomically writes it. Successful Save updates the saved-content hash and clears superseded recovery data. On restart, Verseform offers recovery only when the recovery snapshot is newer or differs from the saved artifact.
+Editor observations update revision/current hash; dirty state is derived and a stamped scheduler effect replaces any older recovery/autosave timer. Explicit Save freezes and validates one immutable editor snapshot before emitting a native write effect. A matching success updates the saved-content hash and clears superseded recovery data; a late success cannot mark newer writing clean. On restart, Verseform offers recovery only when the recovery snapshot is newer or differs from the saved artifact.
 
 ### Print and export
 
-The application freezes a snapshot, validates it, aggregates translation notices, renders print HTML, and hands it to the Windows output adapter. Cancelling a dialog changes nothing. Export writes only the user-selected PDF destination and never mutates the open document.
+The output transition claims the output region, freezes one editor snapshot, validates it, aggregates translation notices, renders print HTML, and hands it to the Windows output adapter. Result events release only their matching operation. Cancelling a dialog changes nothing. Export writes only the user-selected PDF destination and never mutates the open document.
 
 ## Trust and privacy boundaries
 
@@ -115,21 +180,48 @@ The application freezes a snapshot, validates it, aggregates translation notices
 - Provider URLs are allowlisted; redirects and response sizes are bounded.
 - HTML from documents, paste, or providers is sanitized against the editor schema.
 - Development fixtures contain no production credential or copyrighted corpus without redistribution permission.
-- A global DBS secret embedded in a shipped binary is not considered protected. DBS must supply a distributable-client authorization design or another owner-approved boundary.
+- Do not add a global DBS secret: the accepted public ARC contract requires none, and a secret embedded in a shipped binary would not be protected. If DBS authorization changes, stop and establish a new distributable-client boundary before implementation.
 
 ## State and failure model
 
-Use discriminated states rather than independent booleans for document lifecycle, lookup, save, recovery, and output. Every async result carries an operation identity and relevant document revision. Late results are ignored. Errors are visible, recoverable, and do not destroy accepted work.
+Use the canonical regions and discriminated states above rather than independent booleans or ref/state mirrors. Every async result carries an operation stamp. Late results are ignored by the pure transition function. Errors become typed result events, remain visible and recoverable, and never destroy accepted work. A modal overlay is exclusive; provider fallback changes the effective translation but never rewrites the saved preference; output and persistence always consume frozen snapshots.
+
+## Invariant-to-proof map
+
+| Invariant | Owning rule | Cheapest truthful proof |
+|---|---|---|
+| Detection is local and delimiter-triggered. | Core scanner + editor gateway | Pure corpus and editor transaction tests with provider-call count fixed at zero. |
+| Text changes only by user edit or confirmed insertion. | Workspace transition + editor command | Transition table and one browser click/keyboard case. |
+| A stale lookup never replaces changed text. | Operation stamp + source recheck | Pure transition/freshness tests; one delayed browser case. |
+| Dirty state cannot disagree with the document. | Hash selector | Pure selector tests across edit/save/late-save/open/new events. |
+| Recovery/autosave cannot clean or overwrite newer work. | Persistence region | Fake scheduler/store transition tests; native atomic-write smoke only for the filesystem claim. |
+| Citations identify the text actually inserted. | Scripture fallback transition + citation command | Provider contract and browser fallback insertion case. |
+| Output cannot mutate live writing or omit attribution. | Frozen output snapshot | Pure renderer/PDF extraction; native test only for WebView2/destination behavior. |
+| Only one modal interaction owns focus. | Overlay union | Pure transition plus focused browser accessibility cases. |
+| Menus and shortcuts execute the same enabled command. | Command registry | Registry unit table plus a small browser parity matrix. |
+| Credits are complete, local, and safe. | Credits selector + allowlisted link port | Pure metadata tests, browser no-network assertion, and one native external-link allowlist test. |
 
 ## Verification economy
 
-- **Pure tests:** parser, fuzz threshold, canon bounds, citation formatting, migrations, attribution, stale-result rules.
+- **Pure tests:** parser, fuzz threshold, canon bounds, citation formatting, migrations, attribution, workspace transitions/selectors, command registry, operation stamps, and stale-result rules.
 - **Editor integration:** transactions, selection, undo, citation exclusion, formatting, paste, hover/click mapping.
 - **Provider contracts:** the same suite for fake, WEB, and recorded/schema-safe DBS responses; live DBS smoke is explicit and credential-gated.
-- **Browser harness:** almost all user flows with fake ports, including keyboard and accessibility checks.
+- **Browser harness:** almost all user flows with fake ports, a redacted diagnostic snapshot, keyboard/accessibility checks, and a few vertical command-to-visible-result cases.
 - **Windows checks:** atomic file behavior, crash recovery, print/PDF, WebView2 behavior, installer, and a short end-to-end smoke at milestone gates.
 
-Every defect should leave a regression test at the cheapest layer that can truthfully reproduce it. Retain heavy evidence only for release claims or previously unstable platform seams.
+Every defect should leave a regression test at the cheapest layer that can truthfully reproduce it. During implementation, run the smallest owning test and its direct consumer; run `npm run check` once before a completed slice. Retain heavy PDF, installer, and native evidence only for release claims or previously unstable platform seams.
+
+## Refactor method
+
+Use a strangler sequence around the already verified Alpha behavior:
+
+1. Freeze the current browser cases as parity evidence and introduce the workspace types, reducer, selectors, and fake scheduler without changing rendered behavior.
+2. Route one complete flow at a time through the kernel: document/persistence first, scripture second, output/overlays/commands third. A migrated flow can no longer call a runtime adapter from React.
+3. Introduce the editor gateway at the point where a migrated flow needs an editor snapshot or command. Do not make Tiptap JSON application state or recreate ProseMirror.
+4. Delete superseded React refs, booleans, effects, and handlers in the same flow's change; do not leave dual control paths.
+5. Split the now-passive UI by interaction surface only after orchestration has moved. Component boundaries follow stable view-model and intent contracts.
+
+Do not change the `.verseform` schema, DBS/WEB contracts, native file commands, output semantics, or visible Alpha behavior during the kernel refactor. Do not add a state-management dependency unless the pure TypeScript design proves insufficient. Each commit must leave the app runnable and the migrated vertical flow proved.
 
 ## Knowledge ownership
 
@@ -141,6 +233,8 @@ Every defect should leave a regression test at the cheapest layer that can truth
 - Schemas, tests, and fixtures own **executable examples**.
 
 Do not duplicate these authorities. Change the owning artifact and link to it.
+
+For any change, trace the tower in both directions: start at the owning requirement and invariant; identify the workspace event, region, selector, and any effect; follow that effect to exactly one port or editor command; then prove the rule at the cheapest layer and keep only the minimum vertical browser/native evidence. If that path is ambiguous, repair the ownership model before adding behavior.
 
 ## Primary references
 

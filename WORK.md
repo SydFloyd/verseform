@@ -4,10 +4,11 @@ Updated: 2026-09-03
 
 ## Now
 
-- Stage: the owner has accepted the verified Windows alpha as complete through `VFM-070`.
-- Active item: none; `VFM-070` is complete.
-- Next item: none in the current roadmap.
+- Stage: the verified Windows Alpha is complete; the coherent-system plan for Beta is complete through `VFM-080`.
+- Active item: none; `VFM-080` is complete.
+- Next item: `VFM-090` — preserve Alpha behavior while moving orchestration from React into the application kernel, command registry, and editor gateway.
 - Baseline: the completed alpha uses familiar File/Edit menus and icon controls; live font, size, document-title, and dirty state stay synchronized; paragraph breaks trigger reference detection; NASB is preferred for a first online session without overriding saved preferences or offline WEB; and the established document-safety, accessibility, privacy, output, packaging, and attribution guarantees remain verified.
+- Beta control target: one canonical regional workspace state; one typed intent→event→effect→result loop; derived dirty/title/enablement state; stamped async operations; one command catalog for menus and shortcuts; one editor gateway; no runtime calls from views; and a redacted browser-only diagnostic snapshot. `VFM-100` then uses those contracts for the compact chrome and Help → Credits & Licenses experience.
 
 ## Last verified
 

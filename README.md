@@ -12,7 +12,7 @@ Verseform is a lightweight, local-first Windows text editor with one-click scrip
 
 ## Current milestone
 
-The owner-accepted Windows alpha is complete through `VFM-070`. Verseform now combines the verified document-safety, accessibility, privacy, attribution, and packaging baseline with familiar File/Edit menus, live formatting controls, paragraph-break reference detection, synchronized window-title state, and NASB-first online selection that preserves explicit preferences and offline WEB. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources; detection remains entirely local.
+The owner-accepted Windows Alpha is complete through `VFM-070`, and `VFM-080` defines the coherent-system path to Beta. The next slice preserves every verified behavior while moving orchestration behind one application kernel, command registry, and editor gateway; the following UI slice tightens the flat daily-use chrome and adds local DBS credits and licensing. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources; detection remains entirely local.
 
 Read [ALPHA-RELEASE.md](ALPHA-RELEASE.md) for supported behavior, keyboard commands, known limits, and the release checklist. [PRIVACY.md](PRIVACY.md) describes exactly what stays local and when the DBS service is contacted.
 

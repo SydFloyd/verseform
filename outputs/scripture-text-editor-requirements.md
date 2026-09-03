@@ -8,6 +8,7 @@ Verseform is a lightweight Windows desktop text editor for writing ordinary rich
 
 - Fast to open, learn, and use.
 - Familiar document-editing conventions and keyboard shortcuts.
+- The writing surface is visually primary. Application chrome is compact, stable, and quiet without making targets, labels, focus, or current state hard to perceive.
 - Local documents and preferences by default; no sign-in or managed cloud storage.
 - Scripture assistance is visible but unobtrusive and never changes text without a click.
 - Reliable printing and PDF output take priority over broad format compatibility.
@@ -28,8 +29,17 @@ The editor must provide:
 - Undo/redo, find/replace, spellcheck, clean paste, and common keyboard shortcuts.
 - File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested.
 - Accessible controls, visible focus states, and keyboard operation for core actions.
+- The native window title owns the visible Verseform identity, document name, and unsaved indicator. The document view does not repeat a visible Verseform heading above the controls.
+- Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing.
 
 The editor will not initially include editable headers or footers, margin controls, or DOCX support.
+
+## Help, credits, and licenses
+
+- A Help menu exposes a local **Credits & Licenses** view without interrupting or changing the document.
+- The view identifies the installed Verseform version; thanks and credits Digital Bible Society for scripture access; identifies the bundled World English Bible and its provenance; and exposes applicable translation and third-party software notices.
+- Translation notices come from the same normalized metadata used by citations and print/PDF output. Provider text is rendered as plain text and never as remote HTML.
+- Viewing credits requires no provider request. Any external website action leaves the privileged webview through a narrow allowlisted adapter and must not imply that DBS endorses Verseform.
 
 ## Scripture detection and insertion
 
@@ -64,6 +74,6 @@ Available authorized translations are loaded from DBS. The user's preferred tran
 
 The first release targets Windows. Accounts, cloud synchronization, collaborative editing, editable page furniture, margin adjustment, and DOCX import/export are outside the initial scope.
 
-## Release acceptance
+## Beta acceptance
 
-The product is ready when a user can create, format, recover, save, reopen, print, and export a document locally; select an authorized translation; recognize valid, fuzzy, and invalid references; preview a detected passage; and insert it with one click without the generated citation being detected again.
+The Beta is ready when a daily Windows user can enter the writing surface immediately; create, format, recover, save, reopen, print, and export a document locally; select an authorized translation; recognize valid, fuzzy, and invalid references; preview and insert a passage with one click; reach every common action by predictable menu or shortcut; inspect DBS and software credits locally; and upgrade from the Alpha without losing documents, settings, recovery state, or required attribution.
