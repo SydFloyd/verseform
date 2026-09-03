@@ -6,6 +6,8 @@ export type PrintSnapshot = {
   html: string;
   bodyHtml: string;
   notices: string[];
+  pageNumbers: boolean;
+  printCss: string;
 };
 
 const attributionByTranslation: Record<string, string> = {
@@ -30,6 +32,16 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function escapeCssString(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("<", "\\3C ")
+    .replaceAll(">", "\\3E ")
+    .replaceAll("\r", "")
+    .replaceAll("\n", "\\A ");
 }
 
 function safeNumber(value: unknown, minimum: number, maximum: number): number | undefined {
@@ -158,11 +170,33 @@ export function buildPrintSnapshot(
       ?? `Translation attribution required for ${translation}.`,
   );
   const pageNumber = options.pageNumbers
-    ? '<div class="sample-page-number" aria-label="Page 1">Page 1</div>'
+    ? '<div class="preview-page-number" aria-label="Page 1">Page 1</div>'
     : "";
   const noticesHtml = notices.map(
     (notice) => `<p class="translation-notice">${escapeHtml(notice)}</p>`,
   ).join("");
+  const footerText = escapeCssString(["Powered by DBS", ...notices].join("\n"));
+  const printCss = `
+    @page {
+      size: letter;
+      margin: 0.75in 0.75in 1.5in;
+      @bottom-left { content: "${footerText}"; font: 7.5pt/1.2 system-ui, sans-serif; color: #514b40; text-align: left; white-space: pre-wrap; }
+      ${options.pageNumbers ? '@bottom-right { content: "Page " counter(page); font: 9pt system-ui, sans-serif; color: #514b40; }' : ""}
+    }
+    .print-document { color: #191711; font-family: Garamond, Georgia, serif; font-size: 12pt; line-height: 1.5; }
+    .print-document main { flex: 1 0 auto; }
+    .print-document p { margin: 0 0 0.75em; }
+    .print-document cite { font-style: normal; }
+    .print-document a { color: inherit; text-decoration: underline; }
+    .print-document .print-footer { border-top: 1px solid #b8ae9c; color: #514b40; font: 7.5pt/1.2 system-ui, sans-serif; padding-top: 0.08in; }
+    .print-document .translation-notice { margin: 0.04in 0 0; }
+    .print-document .preview-page-number { color: #514b40; font: 9pt system-ui, sans-serif; margin-top: 0.15in; text-align: right; }
+    @media print {
+      .print-document { display: flex; flex-direction: column; margin: 0; max-width: none; min-height: auto; }
+      .print-document .print-footer { display: none; }
+      .print-document .preview-page-number { display: none; }
+    }
+  `;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -170,24 +204,26 @@ export function buildPrintSnapshot(
   <meta charset="utf-8">
   <title>${escapeHtml(document.title)} — Verseform</title>
   <style>
-    @page { size: letter; margin: 0.75in 0.75in 0.9in; ${options.pageNumbers ? '@bottom-center { content: "Page " counter(page); }' : ""} }
-    html { font-family: Garamond, Georgia, serif; color: #191711; }
-    body { display: flex; flex-direction: column; min-height: 9.2in; max-width: 7in; margin: 0 auto; font-size: 12pt; line-height: 1.5; }
-    p { margin: 0 0 0.75em; }
-    cite { font-style: normal; }
-    a { color: inherit; text-decoration: underline; }
-    .print-footer { border-top: 1px solid #b8ae9c; margin-top: auto; padding-top: 0.6rem; font: 9pt system-ui, sans-serif; color: #514b40; }
-    .translation-notice { margin: 0.25rem 0; }
-    .sample-page-number { margin-top: 1rem; text-align: center; font: 9pt system-ui, sans-serif; }
-    @media print { .sample-page-number { display: none; } }
+    ${printCss}
+    html { background: #f3efe7; }
+    body { margin: 0; padding: 0.45in; }
+    .print-document { background: white; box-sizing: border-box; display: flex; flex-direction: column; margin: 0 auto; max-width: 8.5in; min-height: 11in; padding: 0.75in 0.75in 1.5in; }
+    .print-document .print-footer { margin-top: auto; }
+    @media print {
+      html { background: white; }
+      body { padding: 0; }
+      .print-document { padding: 0; }
+    }
   </style>
 </head>
 <body>
-  <main>${bodyHtml}</main>
-  <footer class="print-footer"><strong>Powered by DBS</strong>${noticesHtml}</footer>
-  ${pageNumber}
+  <article class="print-document">
+    <main>${bodyHtml}</main>
+    <footer class="print-footer"><strong>Powered by DBS</strong>${noticesHtml}</footer>
+    ${pageNumber}
+  </article>
 </body>
 </html>`;
 
-  return { html, bodyHtml, notices };
+  return { html, bodyHtml, notices, pageNumbers: options.pageNumbers, printCss };
 }

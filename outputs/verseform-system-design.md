@@ -81,9 +81,9 @@ DBS responses are redirect-, time-, size-, and schema-bounded, normalized to pla
 
 ### Output
 
-Printing and PDF export operate on an immutable document snapshot, not the live editor DOM. The output renderer creates semantic print HTML, derives translation notices from citation marks, adds the DBS footer, and applies print-only pagination styles. A Windows adapter invokes WebView2 print UI or PDF output.
+Printing and PDF export operate on an immutable document snapshot, not the live editor DOM. The output renderer creates escaped semantic print HTML, derives translation notices from citation marks, and uses Chromium page-margin boxes for the repeated DBS footer, notices, and optional page counter. The Windows adapter invokes the WebView2 system print UI for Print. Save PDF first grants one destination through a native dialog, then awaits WebView2 `PrintToPdf` completion with fixed Letter settings and browser headers disabled.
 
-The walking slice must prove page numbering, footer placement, and PDF fidelity before the exact native route is locked. If WebView2 cannot satisfy the contract reliably, only the output adapter changes.
+The output adapter is the only platform-specific seam. The browser harness generates and text-extracts a representative multi-page Edge PDF; native checks cover WebView2 availability and destination validation.
 
 ## Critical flows
 

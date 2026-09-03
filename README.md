@@ -12,7 +12,7 @@ Verseform is a lightweight, local-first Windows text editor with one-click scrip
 
 ## Current slice
 
-`VFM-040` connects the public [Digital Bible Society ARC API](https://arc.dbs.org/docs) through a native, allowlisted JSON adapter. Verseform loads authorized translations, remembers the local preference, carries provider attribution into citations and output, bounds and caches permitted chapter responses, and visibly falls back to its complete bundled World English Bible without mislabeling inserted text. Reference detection remains local and never makes a network request.
+`VFM-050` completes attributed print and PDF output. Verseform freezes the open document into escaped print HTML, repeats “Powered by DBS” and every used translation notice on each Letter page, and optionally numbers pages. Print opens the Windows system print flow; Save PDF uses a native destination dialog and awaits WebView2's direct PDF writer without mutating the document. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and complete bundled World English Bible from `VFM-040` remain the online and explicit offline scripture sources; detection remains entirely local.
 
 ## Develop and verify
 

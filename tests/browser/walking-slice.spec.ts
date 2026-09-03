@@ -55,8 +55,8 @@ test("walks from a detected reference through attributed PDF output", async ({
   await editor.press("Control+z");
   await expect(reopenedCitation).toHaveText("(John 3:16, WEB)");
 
-  await page.getByRole("checkbox", { name: "Page number" }).check();
-  await page.getByRole("button", { name: "Print / PDF" }).click();
+  await page.getByRole("checkbox", { name: "Page numbers" }).check();
+  await page.getByRole("button", { name: "Save PDF" }).click();
   const printFrame = page.frameLocator('iframe[title="Print/PDF preview"]');
   await expect(printFrame.locator("body")).toContainText("Powered by DBS");
   await expect(printFrame.locator("body")).toContainText("World English Bible");
@@ -70,7 +70,7 @@ test("walks from a detected reference through attributed PDF output", async ({
   });
   expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
   expect(pdf.byteLength).toBeGreaterThan(5_000);
-  await testInfo.attach("VFM-010 print sample", {
+  await testInfo.attach("Verseform attributed print sample", {
     body: pdf,
     contentType: "application/pdf",
   });

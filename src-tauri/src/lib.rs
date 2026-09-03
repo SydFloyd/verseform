@@ -225,10 +225,31 @@ async fn dbs_get_chapter(
 }
 
 #[tauri::command]
-fn show_print_dialog(window: WebviewWindow) -> Result<(), String> {
-    window
-        .eval(output::WEBVIEW2_PRINT_SCRIPT)
-        .map_err(|error| error.to_string())
+async fn show_print_dialog(window: WebviewWindow) -> Result<(), String> {
+    output::show_system_print_dialog(window).await
+}
+
+#[tauri::command]
+async fn export_pdf_dialog(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    suggested_name: String,
+) -> Result<Option<output::SavedPdf>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .add_filter("PDF document", &["pdf"])
+        .set_file_name(output::suggested_pdf_name(&suggested_name))
+        .blocking_save_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let path = selected
+        .into_path()
+        .map_err(|_| "Only a local PDF destination can be selected.")?;
+    let path = output::validate_pdf_destination(path)?;
+    output::export_pdf(window, path.clone()).await?;
+    Ok(Some(output::saved_pdf(&path)))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -252,7 +273,8 @@ pub fn run() {
             set_preferred_translation,
             dbs_get_catalog,
             dbs_get_chapter,
-            show_print_dialog
+            show_print_dialog,
+            export_pdf_dialog
         ])
         .run(tauri::generate_context!())
         .expect("error while running Verseform");

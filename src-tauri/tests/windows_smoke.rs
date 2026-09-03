@@ -3,7 +3,7 @@
 use serde_json::json;
 use tempfile::tempdir;
 use verseform_lib::document::{DocumentEnvelope, open_document, save_atomic};
-use verseform_lib::output::WEBVIEW2_PRINT_SCRIPT;
+use verseform_lib::output::{suggested_pdf_name, validate_pdf_destination};
 use verseform_lib::storage::{
     RecoverySnapshot, discard_recovery_snapshot, list_recent, list_recovery_snapshots,
     preferred_translation, record_recent, set_preferred_translation, write_recovery_snapshot,
@@ -129,5 +129,6 @@ fn profile_recents_and_recovery_survive_a_fresh_storage_read() {
 fn windows_output_route_targets_the_installed_webview2_runtime() {
     let version = tauri::webview_version().expect("WebView2 Runtime must be installed");
     assert!(!version.trim().is_empty());
-    assert_eq!(WEBVIEW2_PRINT_SCRIPT, "window.print()");
+    assert_eq!(suggested_pdf_name("Walking.verseform"), "Walking.pdf");
+    assert!(validate_pdf_destination(std::path::PathBuf::from("relative.pdf")).is_err());
 }

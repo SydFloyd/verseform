@@ -37,6 +37,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.1",
+    "pdfjs-dist": "6.3.289",
     "typescript": "7.0.2",
     "vite": "8.2.2",
     "vitest": "4.1.11"

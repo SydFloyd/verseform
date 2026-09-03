@@ -50,7 +50,7 @@ test("formats with keyboard and toolbar controls, then preserves formatting on r
   await expect(editor.locator("a")).toHaveAttribute("href", "https://example.com");
   await expect(editor.locator("p")).toHaveAttribute("data-indent", "1");
 
-  await page.getByRole("button", { name: "Print / PDF" }).click();
+  await page.getByRole("button", { name: "Print" }).click();
   const frame = page.frameLocator('iframe[title="Print/PDF preview"]');
   await expect(frame.locator("strong").first()).toHaveText("Bold");
   await expect(frame.locator("a").first()).toHaveAttribute("href", "https://example.com");

@@ -78,7 +78,10 @@ export interface WindowAdapter {
 
 export interface OutputAdapter {
   print(snapshot: PrintSnapshot): Promise<void>;
+  savePdf(snapshot: PrintSnapshot, suggestedName: string): Promise<SavedPdf | null>;
 }
+
+export type SavedPdf = { path: string; displayName: string };
 
 export type RuntimeAdapters = {
   scripture: ScriptureProvider;

@@ -67,6 +67,9 @@ class TauriDocumentStore implements DocumentStore {
 
 class WebView2OutputAdapter implements OutputAdapter {
   async print(_snapshot: PrintSnapshot): Promise<void> { await invoke("show_print_dialog"); }
+  async savePdf(_snapshot: PrintSnapshot, suggestedName: string) {
+    return invoke<{ path: string; displayName: string } | null>("export_pdf_dialog", { suggestedName });
+  }
 }
 
 class TauriWindowAdapter implements WindowAdapter {

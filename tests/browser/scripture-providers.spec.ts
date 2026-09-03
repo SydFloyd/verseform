@@ -33,7 +33,7 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
   await expect(citation).toHaveAttribute("data-attribution", /DBS test fixture/);
   expect(await page.evaluate(() => (window as typeof window & { __dbsNetworkRequests?: number }).__dbsNetworkRequests)).toBe(1);
 
-  await page.getByRole("button", { name: "Print / PDF" }).click();
+  await page.getByRole("button", { name: "Print" }).click();
   await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
     .toContainText("DBS test fixture — not production scripture.");
 

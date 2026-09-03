@@ -68,6 +68,7 @@ export function App() {
   const [status, setStatus] = useState(runtime.kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready");
   const [pageNumbers, setPageNumbers] = useState(false);
   const [printSnapshot, setPrintSnapshot] = useState<PrintSnapshot>();
+  const [outputBusy, setOutputBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [displayName, setDisplayName] = useState("Untitled.verseform");
   const [recent, setRecent] = useState<RecentDocument[]>([]);
@@ -375,15 +376,40 @@ export function App() {
     await performAction(action);
   };
 
-  const print = async () => {
+  const freezeOutput = async (): Promise<PrintSnapshot | undefined> => {
     if (!editor) return;
+    const immutable = createVerseformDocument(editor.getJSON() as EditorNode, session.current.document);
+    const snapshot = buildPrintSnapshot(immutable, { pageNumbers });
+    setPrintSnapshot(snapshot);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    return snapshot;
+  };
+
+  const print = async () => {
+    if (outputBusy) return;
+    setOutputBusy(true);
     try {
-      const immutable = createVerseformDocument(editor.getJSON() as EditorNode, session.current.document);
-      const snapshot = buildPrintSnapshot(immutable, { pageNumbers });
-      setPrintSnapshot(snapshot); setStatus("Print/PDF snapshot ready with required attribution.");
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      const snapshot = await freezeOutput();
+      if (!snapshot) return;
       await runtime.output.print(snapshot);
-    } catch (error) { setStatus(`Print/PDF failed: ${errorMessage(error)}`); }
+      setStatus("Windows print dialog opened with an immutable attributed snapshot.");
+    } catch (error) { setStatus(`Print failed: ${errorMessage(error)}`); }
+    finally { setOutputBusy(false); }
+  };
+
+  const savePdf = async () => {
+    if (outputBusy) return;
+    setOutputBusy(true);
+    try {
+      const snapshot = await freezeOutput();
+      if (!snapshot) return;
+      const suggestedName = displayName.replace(/\.verseform$/i, "") || "Verseform";
+      const saved = await runtime.output.savePdf(snapshot, suggestedName);
+      setStatus(saved
+        ? `Exported ${saved.displayName} without changing the document.`
+        : "PDF export canceled. The document was not changed.");
+    } catch (error) { setStatus(`PDF export failed: ${errorMessage(error)}`); }
+    finally { setOutputBusy(false); }
   };
 
   const updateBlock = (attributes: Record<string, unknown>) => {
@@ -497,8 +523,9 @@ export function App() {
           </label>
           {catalogOffline ? <span className="offline-badge" role="note">Offline · WEB</span> : null}
           <span className="toolbar-spacer" />
-          <label className="page-number-option"><input type="checkbox" checked={pageNumbers} onChange={(event) => setPageNumbers(event.target.checked)} />Page number</label>
-          <button className="primary-action" type="button" onClick={() => void print()}>Print / PDF</button>
+          <label className="page-number-option"><input type="checkbox" checked={pageNumbers} onChange={(event) => setPageNumbers(event.target.checked)} disabled={outputBusy} />Page numbers</label>
+          <button type="button" onClick={() => void print()} disabled={outputBusy}>Print</button>
+          <button className="primary-action" type="button" onClick={() => void savePdf()} disabled={outputBusy}>Save PDF</button>
         </nav>
 
         <nav className="toolbar formatting-toolbar" aria-label="Text formatting">
@@ -557,7 +584,7 @@ export function App() {
 
       {pendingAction ? <div className="modal-backdrop"><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" onKeyDown={(event) => { if (event.key === "Escape") void resolvePending("cancel"); }}><h2 id="unsaved-heading">Save changes?</h2><p>Your latest writing has not been saved to the document.</p><div><button autoFocus type="button" onClick={() => void resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => void resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => void resolvePending("save")}>Save</button></div></section></div> : null}
 
-      {printSnapshot ? <article className="print-surface" aria-hidden="true"><div dangerouslySetInnerHTML={{ __html: printSnapshot.bodyHtml }} /><footer><strong>Powered by DBS</strong>{printSnapshot.notices.map((notice) => <p key={notice}>{notice}</p>)}</footer>{pageNumbers ? <div className="sample-page-number">Page 1</div> : null}</article> : null}
+      {printSnapshot ? <><style>{printSnapshot.printCss}</style><article className="print-document print-surface" aria-hidden="true"><main dangerouslySetInnerHTML={{ __html: printSnapshot.bodyHtml }} /><footer className="print-footer"><strong>Powered by DBS</strong>{printSnapshot.notices.map((notice) => <p className="translation-notice" key={notice}>{notice}</p>)}</footer>{printSnapshot.pageNumbers ? <div className="preview-page-number">Page 1</div> : null}</article></> : null}
     </>
   );
 }

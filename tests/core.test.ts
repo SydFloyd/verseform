@@ -187,6 +187,9 @@ describe("portable documents and output", () => {
     expect(snapshot.html).toContain("Powered by DBS");
     expect(snapshot.html).toContain("World English Bible");
     expect(snapshot.html).toContain("Page 1");
+    expect(snapshot.pageNumbers).toBe(true);
+    expect(snapshot.printCss).toContain('content: "Page " counter(page)');
+    expect(snapshot.printCss).toContain("@bottom-left");
   });
 
   it("uses escaped attribution carried by an inserted DBS citation", () => {
@@ -211,5 +214,7 @@ describe("portable documents and output", () => {
     expect(snapshot.notices).toEqual(["DBS Test Bible <copyright owner>"]);
     expect(snapshot.html).toContain("DBS Test Bible &lt;copyright owner&gt;");
     expect(snapshot.html).not.toContain("<copyright owner>");
+    expect(snapshot.pageNumbers).toBe(false);
+    expect(snapshot.printCss).not.toContain('content: "Page " counter(page)');
   });
 });
