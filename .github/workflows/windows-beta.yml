@@ -34,8 +34,28 @@ jobs:
         run: npm audit --audit-level=high
       - name: Run TypeScript and pure application checks
         run: npm run typecheck && npm run test
-      - name: Run production-browser journeys
-        run: npm run test:e2e
+      - name: Build production webview
+        run: npm run build
+      - name: Run Alpha hardening journeys
+        run: npx playwright test tests/browser/alpha-hardening.spec.ts
+      - name: Run Beta stabilization journeys
+        run: npx playwright test tests/browser/beta-stabilization.spec.ts
+      - name: Run Beta UI journeys
+        run: npx playwright test tests/browser/beta-ui.spec.ts
+      - name: Run editing lifecycle journeys
+        run: npx playwright test tests/browser/editing-lifecycle.spec.ts
+      - name: Run kernel journeys
+        run: npx playwright test tests/browser/kernel.spec.ts
+      - name: Run output journeys
+        run: npx playwright test tests/browser/output.spec.ts
+      - name: Run reference intelligence journeys
+        run: npx playwright test tests/browser/reference-intelligence.spec.ts
+      - name: Run refinement journeys
+        run: npx playwright test tests/browser/refinement.spec.ts
+      - name: Run scripture provider journeys
+        run: npx playwright test tests/browser/scripture-providers.spec.ts
+      - name: Run walking-slice journeys
+        run: npx playwright test tests/browser/walking-slice.spec.ts
       - name: Run native and Windows checks
         run: npm run check:native
       - name: Validate release boundaries and licenses
