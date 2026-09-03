@@ -147,7 +147,7 @@ test("opens complete local credits by pointer and keyboard, escapes provider met
       evidence.links.push((event as CustomEvent<{ target: string; url: string }>).detail);
     });
   });
-  await page.goto("/?dbs=untrusted-metadata");
+  await page.goto("/?dbs=untrusted-metadata&lookupDelay=150");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await expectTranslation(page, "ENGNASB");
@@ -175,12 +175,16 @@ test("opens complete local credits by pointer and keyboard, escapes provider met
   expect(afterOpen.catalogs).toBe(before.catalogs);
   expect(afterOpen.passages).toBe(before.passages);
 
-  await dialog.getByRole("button", { name: /Visit Digital Bible Society/ }).click();
+  const dbsLink = dialog.getByRole("button", { name: /Visit Digital Bible Society/ });
+  await dbsLink.click();
+  await expect(dbsLink).toHaveAttribute("aria-disabled", "true");
+  await expect(dbsLink).toBeFocused();
   await expect.poll(() => page.evaluate(() => (
     window as unknown as { __creditsEvidence: { links: Array<{ target: string; url: string }> } }
   ).__creditsEvidence.links)).toEqual([
     { target: "digital-bible-society", url: "https://dbs.org/" },
   ]);
+  await expect(dbsLink).toHaveAttribute("aria-disabled", "false");
   await expect(page).toHaveURL(/dbs=untrusted-metadata/);
 
   const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();

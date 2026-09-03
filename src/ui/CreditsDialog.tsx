@@ -50,7 +50,9 @@ export function CreditsDialog({
           <h3 id="dbs-credit-heading">Scripture service</h3>
           <p>Online translation catalogs and passages are supplied through Digital Bible Society services.</p>
           <p className="independence-note">Verseform is an independent application and is not presented as endorsed by Digital Bible Society.</p>
-          <button type="button" className="external-link-action" disabled={linkBusy} onClick={() => onOpenLink("digital-bible-society")}>
+          <button type="button" className="external-link-action" aria-disabled={linkBusy} onClick={() => {
+            if (!linkBusy) onOpenLink("digital-bible-society");
+          }}>
             Visit Digital Bible Society <span aria-hidden="true">↗</span>
           </button>
         </section>
@@ -67,7 +69,9 @@ export function CreditsDialog({
         <section aria-labelledby="web-credit-heading">
           <h3 id="web-credit-heading">Bundled World English Bible</h3>
           <p>{model.webProvenance}</p>
-          <button type="button" className="external-link-action" disabled={linkBusy} onClick={() => onOpenLink("world-english-bible")}>
+          <button type="button" className="external-link-action" aria-disabled={linkBusy} onClick={() => {
+            if (!linkBusy) onOpenLink("world-english-bible");
+          }}>
             View WEB provenance <span aria-hidden="true">↗</span>
           </button>
         </section>

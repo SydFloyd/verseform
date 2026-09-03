@@ -104,6 +104,7 @@ jobs:
           "### Verseform 0.2.0 Windows Beta" >> $env:GITHUB_STEP_SUMMARY
           "- Commit: ``$env:GITHUB_SHA``" >> $env:GITHUB_STEP_SUMMARY
           "- Installer SHA-256: ``$hash``" >> $env:GITHUB_STEP_SUMMARY
+          Write-Output "::notice title=Beta installer SHA-256::$hash"
           Write-Output "Beta installer SHA-256: $hash"
       - uses: actions/upload-artifact@v4
         with:

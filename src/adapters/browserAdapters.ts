@@ -204,10 +204,13 @@ class BrowserWindowAdapter implements WindowAdapter {
 }
 
 class BrowserExternalLinkAdapter implements ExternalLinkAdapter {
+  constructor(private readonly delayMs: number) {}
+
   async open(target: CreditLinkId): Promise<void> {
     window.dispatchEvent(new CustomEvent("verseform:external-link", {
       detail: Object.freeze({ target, url: CREDIT_LINK_URLS[target] }),
     }));
+    await wait(this.delayMs);
   }
 }
 
@@ -220,7 +223,7 @@ export function createBrowserAdapters(delayMs: number): RuntimeAdapters {
   return {
     scripture: new CompositeScriptureProvider(web, dbs),
     preferences: new BrowserPreferenceStore(), documents: new BrowserDocumentStore(),
-    output: new BrowserOutputAdapter(), externalLinks: new BrowserExternalLinkAdapter(),
+    output: new BrowserOutputAdapter(), externalLinks: new BrowserExternalLinkAdapter(delayMs),
     window: new BrowserWindowAdapter(), kind: "browser",
   };
 }

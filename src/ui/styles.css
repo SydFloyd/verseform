@@ -68,7 +68,7 @@ button {
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled):not([aria-disabled="true"]) {
   border-color: #70634e;
   background: #f7f1e6;
 }
@@ -83,7 +83,8 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -195,7 +196,8 @@ button:disabled {
 .typeface-group select:first-child { width: 9rem; }
 .typeface-group select:last-child { width: 4.35rem; }
 
-.formatting-toolbar button[aria-pressed="true"] {
+.formatting-toolbar button[aria-pressed="true"],
+.formatting-toolbar button[aria-pressed="true"]:hover {
   border-color: #6b4d2f;
   background: #e8d7bc;
   box-shadow: inset 0 0 0 1px #6b4d2f;
