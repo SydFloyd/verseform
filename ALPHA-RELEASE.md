@@ -23,9 +23,9 @@ The installed app works offline with the bundled public-domain World English Bib
 
 ## Verified alpha evidence
 
-- [Windows beta run 33756141690](https://github.com/SydFloyd/verseform/actions/runs/33756141690) passed on a clean GitHub-hosted Windows Server 2025 runner at VFM-070 commit `cbacf76`: npm and Rust advisory audits, the canonical regression suite, a fresh NSIS build, the per-user install/provider-blocked launch/uninstall lifecycle, user-document preservation, and artifact upload all succeeded. “Windows beta” is the workflow's historical label at that commit.
+- [Windows alpha run 33759181934](https://github.com/SydFloyd/verseform/actions/runs/33759181934) passed on a clean GitHub-hosted Windows Server 2025 runner at alpha-closeout commit `0c41ff0`: npm and Rust advisory audits, the canonical regression suite, a fresh NSIS build, the per-user install/provider-blocked launch/uninstall lifecycle, user-document preservation, and artifact upload all succeeded.
 - The run's production-browser suite covered the VFM-070 refinement cases and the provider-free offline detect-to-insert/save/reopen/print/PDF flow. The installed-app lifecycle separately verified a responsive offline launch, Windows registration and removal, and preservation of a user-created `.verseform` document.
-- The uploaded artifact is `verseform-0.1.0-windows-beta`, retained through 2026-09-17. The locally verified refined installer is 4,195,936 bytes with SHA-256 `5B637F9CF98380186B79DA60AD1ED5B51EEDCDA14A491F5476E07EEDC985B050`; its unsigned status is the documented alpha limit above.
+- The uploaded artifact is `verseform-0.1.0-windows-alpha`, retained through 2026-09-17. The locally verified refined installer is 4,195,936 bytes with SHA-256 `5B637F9CF98380186B79DA60AD1ED5B51EEDCDA14A491F5476E07EEDC985B050`; its unsigned status is the documented alpha limit above.
 
 ## Release checklist
 
