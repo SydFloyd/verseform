@@ -2,6 +2,7 @@ import type { EditorFormatting } from "../editor/gateway";
 import type { Translation } from "./ports";
 import type { WorkspaceCommandId } from "./commands";
 import type { PreviewState, WorkspaceOverlay, WorkspaceState } from "./workspace";
+import { creditsFor, type CreditsModel } from "./credits";
 
 export function selectDirty(state: WorkspaceState): boolean {
   return state.document.currentHash !== state.document.savedHash;
@@ -17,7 +18,7 @@ export function selectActiveTranslation(state: WorkspaceState): Translation {
 }
 
 export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCommandId): boolean {
-  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph") return false;
+  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph" || state.overlay.type === "credits") return false;
   if (command === "file.new" || command === "file.open" || command === "file.openRecent") {
     return state.editorReady;
   }
@@ -50,6 +51,7 @@ export type WorkspaceViewModel = {
   printSnapshot: WorkspaceState["output"]["snapshot"];
   overlay: WorkspaceOverlay;
   formatting: EditorFormatting;
+  credits: CreditsModel;
 };
 
 export function selectViewModel(state: WorkspaceState): WorkspaceViewModel {
@@ -68,6 +70,7 @@ export function selectViewModel(state: WorkspaceState): WorkspaceViewModel {
     printSnapshot: state.output.snapshot,
     overlay: state.overlay,
     formatting: state.formatting,
+    credits: creditsFor(selectActiveTranslation(state)),
   };
 }
 
@@ -105,6 +108,7 @@ export function selectDiagnostics(
     state.library.recoveryOperationId,
     state.scripture.catalogOperationId,
     state.scripture.preferenceOperationId,
+    state.overlay.type === "credits" ? state.overlay.link?.stamp.id : undefined,
   ].filter((value): value is number => value !== undefined);
   return {
     version: 1,

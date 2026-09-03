@@ -252,6 +252,48 @@ async fn export_pdf_dialog(
     Ok(Some(output::saved_pdf(&path)))
 }
 
+fn credits_url(target: &str) -> Result<&'static str, String> {
+    match target {
+        "digital-bible-society" => Ok("https://dbs.org/"),
+        "world-english-bible" => Ok("https://ebible.org/engwebp/copyright.htm"),
+        _ => Err("That external credits destination is not allowed.".into()),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn launch_external_url(url: &str) -> Result<(), String> {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let operation: Vec<u16> = "open".encode_utf16().chain(std::iter::once(0)).collect();
+    let destination: Vec<u16> = url.encode_utf16().chain(std::iter::once(0)).collect();
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            operation.as_ptr(),
+            destination.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if result as isize <= 32 {
+        Err("Windows could not open the website in the default browser.".into())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn launch_external_url(_url: &str) -> Result<(), String> {
+    Err("External credits links are available in the Windows build.".into())
+}
+
+#[tauri::command]
+fn open_credits_link(target: String) -> Result<(), String> {
+    launch_external_url(credits_url(&target)?)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let scripture_client = scripture::ScriptureClient::new()
@@ -274,8 +316,28 @@ pub fn run() {
             dbs_get_catalog,
             dbs_get_chapter,
             show_print_dialog,
-            export_pdf_dialog
+            export_pdf_dialog,
+            open_credits_link
         ])
         .run(tauri::generate_context!())
         .expect("error while running Verseform");
+}
+
+#[cfg(test)]
+mod credits_tests {
+    use super::credits_url;
+
+    #[test]
+    fn credits_links_are_a_closed_allowlist() {
+        assert_eq!(
+            credits_url("digital-bible-society").unwrap(),
+            "https://dbs.org/"
+        );
+        assert_eq!(
+            credits_url("world-english-bible").unwrap(),
+            "https://ebible.org/engwebp/copyright.htm"
+        );
+        assert!(credits_url("https://example.com/").is_err());
+        assert!(credits_url("file:///C:/Windows/System32/calc.exe").is_err());
+    }
 }

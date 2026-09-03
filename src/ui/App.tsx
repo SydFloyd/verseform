@@ -7,8 +7,9 @@ import {
   type PositionedValidReference,
 } from "../editor/EditorSurface";
 import type { Alignment } from "../editor/gateway";
+import { CreditsDialog } from "./CreditsDialog";
 
-type MenuName = "file" | "edit";
+type MenuName = "file" | "edit" | "help";
 
 const fonts = ["Garamond", "Georgia", "Arial", "Calibri", "Times New Roman", "Verdana"];
 const sizes = ["10pt", "11pt", "12pt", "14pt", "18pt", "24pt"];
@@ -181,8 +182,11 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const paragraphDialogRef = useRef<HTMLElement | null>(null);
   const paragraphReturnFocus = useRef<HTMLElement | null>(null);
+  const creditsDialogRef = useRef<HTMLElement | null>(null);
+  const creditsReturnFocus = useRef<HTMLElement | null>(null);
   const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const editMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const helpMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousOverlay = useRef(view.overlay.type);
 
   useEffect(() => {
@@ -217,10 +221,19 @@ export function App({ controller }: { controller: WorkspaceController }) {
     controller.resolveConfirmation(choice);
     if (choice === "cancel") requestAnimationFrame(() => dialogReturnFocus.current?.focus());
   };
+  const closeCredits = () => {
+    controller.closeCredits();
+    requestAnimationFrame(() => {
+      if (creditsReturnFocus.current) creditsReturnFocus.current.focus();
+      else controller.focusEditor();
+      creditsReturnFocus.current = null;
+    });
+  };
 
   const find = view.overlay.type === "find" ? view.overlay : undefined;
   const paragraph = view.overlay.type === "paragraph" ? view.overlay : undefined;
   const confirming = view.overlay.type === "confirm";
+  const credits = view.overlay.type === "credits" ? view.overlay : undefined;
   const formatting = view.formatting;
   const recovery = view.recoveries[0];
   const initialCanon = controller.getState().scripture.fallback.canon;
@@ -230,13 +243,8 @@ export function App({ controller }: { controller: WorkspaceController }) {
       <a className="skip-link" href="#document-editor" onClick={(event) => {
         event.preventDefault(); controller.focusEditor();
       }}>Skip to document editor</a>
-      <main className="app-shell" inert={confirming || Boolean(paragraph) ? true : undefined}>
-        <header className="app-header">
-          <h1>Verseform</h1>
-          <div className="document-state" aria-label="Current document">
-            <strong>{view.displayName}</strong><span>{view.dirty ? "Unsaved changes" : "Saved locally"}</span>
-          </div>
-        </header>
+      <main className="app-shell" inert={confirming || Boolean(paragraph) || Boolean(credits) ? true : undefined}>
+        <h1 className="sr-only">Verseform document editor</h1>
 
         {recovery ? <section className="recovery-banner" aria-label="Recovery available">
           <div><strong>Recovered writing is available</strong><span>{new Date(recovery.capturedAtMs).toLocaleString()}</span></div>
@@ -245,6 +253,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
         </section> : null}
 
         <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
+          <div className="menu-strip" role="group" aria-label="Application menus">
           <ToolbarMenu id="file-menu" label="File" open={openMenu === "file"} buttonRef={fileMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "file" : undefined)}>
             <MenuItem shortcut={shortcut("file.new")} disabled={!controller.isEnabled("file.new")} onClick={() => requestAction("file.new", undefined, fileMenuButtonRef.current)}>{label("file.new")}</MenuItem>
             <MenuItem shortcut={shortcut("file.open")} disabled={!controller.isEnabled("file.open")} onClick={() => requestAction("file.open", undefined, fileMenuButtonRef.current)}>{label("file.open")}</MenuItem>
@@ -266,6 +275,14 @@ export function App({ controller }: { controller: WorkspaceController }) {
               run("edit.paragraph");
             }}>{label("edit.paragraph")}…</MenuItem>
           </ToolbarMenu>
+          <ToolbarMenu id="help-menu" label="Help" open={openMenu === "help"} buttonRef={helpMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "help" : undefined)}>
+            <MenuItem shortcut={shortcut("help.credits")} disabled={!controller.isEnabled("help.credits")} onClick={() => {
+              creditsReturnFocus.current = helpMenuButtonRef.current;
+              run("help.credits");
+            }}>{label("help.credits")}</MenuItem>
+          </ToolbarMenu>
+          </div>
+          <div className="scripture-strip" role="group" aria-label="Scripture controls">
           {view.recent.length ? <label className="recent-picker">Recent
             <select aria-label="Recent files" value="" onChange={(event) => requestAction("file.openRecent", event.target.value)}>
               <option value="">Choose…</option>{view.recent.map((item) => <option key={item.path} value={item.path}>{item.displayName}</option>)}
@@ -277,32 +294,42 @@ export function App({ controller }: { controller: WorkspaceController }) {
             </select>
           </label>
           {view.catalogOffline ? <span className="offline-badge" role="note">Offline · WEB</span> : null}
+          </div>
         </nav>
 
         <nav className="toolbar formatting-toolbar" aria-label="Text formatting">
-          <ToolbarButton title={commandTitle("format.bold")} active={formatting.bold} command={() => run("format.bold")}>B</ToolbarButton>
-          <ToolbarButton title={commandTitle("format.italic")} active={formatting.italic} command={() => run("format.italic")}><em>I</em></ToolbarButton>
-          <ToolbarButton title={commandTitle("format.underline")} active={formatting.underline} command={() => run("format.underline")}><u>U</u></ToolbarButton>
-          <ToolbarButton title={commandTitle("format.strike")} active={formatting.strike} command={() => run("format.strike")}><s>S</s></ToolbarButton>
-          <ToolbarButton title={commandTitle("format.subscript")} active={formatting.subscript} command={() => run("format.subscript")}>X₂</ToolbarButton>
-          <ToolbarButton title={commandTitle("format.superscript")} active={formatting.superscript} command={() => run("format.superscript")}>X²</ToolbarButton>
-          <select aria-label="Font family" value={formatting.fontFamily} onChange={(event) => run("format.fontFamily", event.target.value)}>
-            {!fonts.includes(formatting.fontFamily) ? <option value={formatting.fontFamily}>{formatting.fontFamily}</option> : null}
-            {fonts.map((font) => <option key={font}>{font}</option>)}
-          </select>
-          <select aria-label="Font size" value={formatting.fontSize} onChange={(event) => run("format.fontSize", event.target.value)}>
-            {!sizes.includes(formatting.fontSize) ? <option value={formatting.fontSize}>{formatting.fontSize}</option> : null}
-            {sizes.map((size) => <option key={size}>{size}</option>)}
-          </select>
-          <label className="color-control icon-color-control" title="Font color"><ColorIcon color={formatting.color} /><input aria-label="Text color" type="color" value={formatting.color} onChange={(event) => run("format.color", event.target.value)} /></label>
-          <label className="color-control icon-color-control" title="Highlight color"><ColorIcon color={formatting.backgroundColor} highlight /><input aria-label="Highlight color" type="color" value={formatting.backgroundColor} onChange={(event) => run("format.highlight", event.target.value)} /></label>
-          <ToolbarButton title={commandTitle("format.link")} active={formatting.link} command={() => run("format.link")}><LinkIcon /></ToolbarButton>
-          <ToolbarButton title={commandTitle("format.bulletList")} active={formatting.bulletList} command={() => run("format.bulletList")}><ListIcon /></ToolbarButton>
-          <ToolbarButton title={commandTitle("format.orderedList")} active={formatting.orderedList} command={() => run("format.orderedList")}><ListIcon ordered /></ToolbarButton>
-          <span className="toolbar-rule" />
-          {(["left", "center", "right", "justify"] as Alignment[]).map((alignment) => <ToolbarButton key={alignment} title={alignment === "justify" ? "Justify" : `Align ${alignment}`} active={formatting.alignment === alignment} command={() => run("format.align", alignment)}><AlignmentIcon alignment={alignment} /></ToolbarButton>)}
-          <ToolbarButton title={commandTitle("format.outdent")} command={() => run("format.outdent")}>←</ToolbarButton>
-          <ToolbarButton title={commandTitle("format.indent")} command={() => run("format.indent")}>→</ToolbarButton>
+          <div className="format-group typeface-group" role="group" aria-label="Typeface">
+            <select aria-label="Font family" value={formatting.fontFamily} onChange={(event) => run("format.fontFamily", event.target.value)}>
+              {!fonts.includes(formatting.fontFamily) ? <option value={formatting.fontFamily}>{formatting.fontFamily}</option> : null}
+              {fonts.map((font) => <option key={font}>{font}</option>)}
+            </select>
+            <select aria-label="Font size" value={formatting.fontSize} onChange={(event) => run("format.fontSize", event.target.value)}>
+              {!sizes.includes(formatting.fontSize) ? <option value={formatting.fontSize}>{formatting.fontSize}</option> : null}
+              {sizes.map((size) => <option key={size}>{size}</option>)}
+            </select>
+          </div>
+          <div className="format-group" role="group" aria-label="Text emphasis">
+            <ToolbarButton title={commandTitle("format.bold")} active={formatting.bold} command={() => run("format.bold")}>B</ToolbarButton>
+            <ToolbarButton title={commandTitle("format.italic")} active={formatting.italic} command={() => run("format.italic")}><em>I</em></ToolbarButton>
+            <ToolbarButton title={commandTitle("format.underline")} active={formatting.underline} command={() => run("format.underline")}><u>U</u></ToolbarButton>
+            <ToolbarButton title={commandTitle("format.strike")} active={formatting.strike} command={() => run("format.strike")}><s>S</s></ToolbarButton>
+            <ToolbarButton title={commandTitle("format.subscript")} active={formatting.subscript} command={() => run("format.subscript")}>X₂</ToolbarButton>
+            <ToolbarButton title={commandTitle("format.superscript")} active={formatting.superscript} command={() => run("format.superscript")}>X²</ToolbarButton>
+          </div>
+          <div className="format-group" role="group" aria-label="Color and links">
+            <label className="color-control icon-color-control" title="Font color"><ColorIcon color={formatting.color} /><input aria-label="Text color" type="color" value={formatting.color} onChange={(event) => run("format.color", event.target.value)} /></label>
+            <label className="color-control icon-color-control" title="Highlight color"><ColorIcon color={formatting.backgroundColor} highlight /><input aria-label="Highlight color" type="color" value={formatting.backgroundColor} onChange={(event) => run("format.highlight", event.target.value)} /></label>
+            <ToolbarButton title={commandTitle("format.link")} active={formatting.link} command={() => run("format.link")}><LinkIcon /></ToolbarButton>
+          </div>
+          <div className="format-group" role="group" aria-label="Lists">
+            <ToolbarButton title={commandTitle("format.bulletList")} active={formatting.bulletList} command={() => run("format.bulletList")}><ListIcon /></ToolbarButton>
+            <ToolbarButton title={commandTitle("format.orderedList")} active={formatting.orderedList} command={() => run("format.orderedList")}><ListIcon ordered /></ToolbarButton>
+          </div>
+          <div className="format-group" role="group" aria-label="Alignment and indentation">
+            {(["left", "center", "right", "justify"] as Alignment[]).map((alignment) => <ToolbarButton key={alignment} title={alignment === "justify" ? "Justify" : `Align ${alignment}`} active={formatting.alignment === alignment} command={() => run("format.align", alignment)}><AlignmentIcon alignment={alignment} /></ToolbarButton>)}
+            <ToolbarButton title={commandTitle("format.outdent")} command={() => run("format.outdent")}>←</ToolbarButton>
+            <ToolbarButton title={commandTitle("format.indent")} command={() => run("format.indent")}>→</ToolbarButton>
+          </div>
         </nav>
 
         {find ? <section className="find-panel" role="dialog" aria-label="Find and replace" onKeyDown={(event) => {
@@ -331,6 +358,16 @@ export function App({ controller }: { controller: WorkspaceController }) {
         {view.printSnapshot ? <section className="output-preview" aria-labelledby="output-heading"><div><p className="eyebrow">Immutable output snapshot</p><h2 id="output-heading">Print / PDF preview</h2></div><iframe title="Print/PDF preview" srcDoc={view.printSnapshot.html} data-testid="print-preview" /></section> : null}
         {view.preview ? <aside className="passage-preview" role="tooltip" aria-live="polite" aria-atomic="true" data-reference-kind={view.preview.candidate.kind} style={{ top: view.preview.top, left: view.preview.left }}><strong>{view.preview.candidate.display}</strong>{view.preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{view.preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{view.preview.loading ? <p>Loading preview…</p> : null}{view.preview.passage ? <><p>{view.preview.passage.text}</p><small>{view.preview.passage.translationName}{view.preview.passage.cached ? " · local cache" : ""}</small>{view.preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {view.preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{view.preview.error ? <p>{view.preview.error}</p> : null}</aside> : null}
       </main>
+
+      {credits ? <CreditsDialog
+        model={view.credits}
+        linkBusy={Boolean(credits.link)}
+        error={credits.error}
+        dialogRef={creditsDialogRef}
+        onClose={closeCredits}
+        onOpenLink={(target) => controller.openCreditLink(target)}
+        onKeyDown={(event) => trapFocus(event, creditsDialogRef.current, closeCredits)}
+      /> : null}
 
       {paragraph ? <div className="modal-backdrop"><section ref={paragraphDialogRef} className="paragraph-dialog" role="dialog" aria-modal="true" aria-labelledby="paragraph-heading" aria-describedby="paragraph-description" onKeyDown={(event) => trapFocus(event, paragraphDialogRef.current, closeParagraph)}>
         <h2 id="paragraph-heading">Paragraph</h2>

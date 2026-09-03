@@ -2,6 +2,7 @@ import type { VerseformDocument } from "../core/document";
 import type { NormalizedReference } from "../core/reference";
 import type { PrintSnapshot } from "../core/output";
 import type { CanonMetadata } from "../core/canon";
+import type { CreditLinkId } from "./credits";
 
 export type Translation = {
   id: string;
@@ -82,6 +83,10 @@ export interface OutputAdapter {
   savePdf(snapshot: PrintSnapshot, suggestedName: string): Promise<SavedPdf | null>;
 }
 
+export interface ExternalLinkAdapter {
+  open(target: CreditLinkId): Promise<void>;
+}
+
 export type SavedPdf = { path: string; displayName: string };
 
 export type RuntimeAdapters = {
@@ -89,6 +94,7 @@ export type RuntimeAdapters = {
   preferences: PreferenceStore;
   documents: DocumentStore;
   output: OutputAdapter;
+  externalLinks: ExternalLinkAdapter;
   window: WindowAdapter;
   kind: "browser" | "tauri";
 };

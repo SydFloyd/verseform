@@ -6,6 +6,10 @@ const root = resolve(import.meta.dirname, "..");
 const fail = (message) => { throw new Error(message); };
 
 const tauri = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.json"), "utf8"));
+const packageManifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+if (tauri.version !== packageManifest.version) {
+  fail("package.json and tauri.conf.json must identify the same installed version");
+}
 const capability = JSON.parse(readFileSync(resolve(root, "src-tauri/capabilities/default.json"), "utf8"));
 const csp = tauri.app?.security?.csp ?? "";
 for (const directive of [
@@ -38,6 +42,10 @@ const metadata = JSON.parse(execFileSync("cargo", [
   "metadata", "--locked", "--format-version", "1",
   "--manifest-path", resolve(root, "src-tauri/Cargo.toml"),
 ], { encoding: "utf8", cwd: root, windowsHide: true, maxBuffer: 32 * 1024 * 1024 }));
+const desktopPackage = metadata.packages.find((entry) => entry.name === "verseform" && !entry.source);
+if (desktopPackage?.version !== packageManifest.version) {
+  fail("package.json and the Verseform Cargo package must identify the same installed version");
+}
 for (const entry of metadata.packages) {
   if (!entry.source) continue;
   const license = entry.license ?? (entry.license_file ? `SEE ${entry.license_file}` : undefined);

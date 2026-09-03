@@ -51,7 +51,7 @@ Use open-source Tiptap/ProseMirror capabilities only unless the owner approves a
 
 ## Module ownership
 
-Implemented source layout entering the Beta interaction pass:
+Implemented source layout after the Beta interaction engineering pass:
 
 ```text
 src/core/        Pure value objects and policies: parser, canon, lookup, document, output
@@ -71,7 +71,8 @@ Begin with four cohesive modules rather than one file per event:
 
 - `workspace.ts` owns `WorkspaceState`, `WorkspaceEvent`, `WorkspaceEffect`, initialization, the pure `transition(state, event)` function, and state invariants.
 - `selectors.ts` derives dirty state, window title, enabled commands, active translation, visible status, and the React-facing view model. Derived facts are never mirrored in mutable refs.
-- `commands.ts` is a closed registry for application commands such as New, Open, Save, Print, Find, Paragraph, and formatting. Menus, shortcuts, enablement, and accessible labels consume the same descriptor. `VFM-100` extends this finite catalog with Credits & Licenses when it adds that capability.
+- `commands.ts` is a closed registry for application commands such as New, Open, Save, Print, Find, Paragraph, Credits & Licenses, and formatting. Menus, shortcuts, enablement, and accessible labels consume the same descriptor.
+- `credits.ts` derives the local Credits & Licenses model from the effective normalized translation, package version, WEB provenance, and the release-audited dependency inventory embedded at build time.
 - `controller.ts` executes effects through injected ports and the editor gateway, stamps result events, owns cancellable timers, and exposes a subscribe/dispatch boundary to React.
 
 This is not event sourcing, Redux, a plugin system, or a generalized workflow engine. Events are ephemeral typed messages; the portable `.verseform` document remains the only user artifact.
@@ -86,7 +87,7 @@ The workspace is one aggregate with explicit, concurrently valid regions:
 | `persistence` | Idle, scheduled recovery/autosave, or an identified explicit/automatic save with its frozen document ID and content hash. |
 | `scripture` | Catalog phase, available translations, selected preference, effective fallback, and at most one identified preview/insertion request. |
 | `output` | Page-number preference and one of idle, preparing a frozen snapshot, printing, or saving PDF. |
-| `overlay` | Exactly one of none, Find, Paragraph, or unsaved-navigation confirmation. `VFM-100` adds Credits & Licenses to this union. Non-modal menus are separate ephemeral view state. |
+| `overlay` | Exactly one of none, Find, Paragraph, Credits & Licenses, or unsaved-navigation confirmation. An in-flight credits link holds its own operation stamp. Non-modal menus are separate ephemeral view state. |
 | `notice` | The latest user-facing message and its monotonic identity; identified background completions cannot overwrite a newer message. |
 
 The editor gateway emits immutable observations containing the content hash, whether the completed transaction changed the document, selection formatting, and command availability. The kernel alone advances the editor revision. Observations cross a microtask boundary so ProseMirror completes selection handling before React renders the result. The gateway accepts a closed instruction union and can freeze one editor snapshot for save/output. Native typing and IME composition apply within Tiptap first, then emit an observation; application and toolbar commands follow the command/event/effect path. This keeps high-frequency editing responsive, keeps ProseMirror positions and transactions in `src/editor/`, and lets the application kernel reason about lifecycle without importing Tiptap.
@@ -148,7 +149,9 @@ The native window title is the visible application identity and carries the docu
 
 File owns document and output commands. Edit owns undo/redo, Find, and Paragraph. Help owns **Credits & Licenses**. Formatting controls retain the flat Alpha language but use shared size, gap, border, focus, active, and color tokens so tightening the chrome cannot produce inconsistent targets or arbitrary exceptions. A finite command registry supplies labels, shortcuts, enablement, and actions to menus and global keyboard handling.
 
-Credits & Licenses is local application content. It shows the installed Verseform version, a clear thank-you and scripture-service credit to Digital Bible Society, the bundled WEB provenance, catalog-supplied notice for the effective translation, and third-party software license access. Provider metadata is plain text. External DBS or provenance links use a dedicated allowlisted adapter and open outside the privileged webview; the view makes no claim of DBS endorsement and requires no network request to open.
+Credits & Licenses is local application content. It shows the installed Verseform version, a clear thank-you and scripture-service credit to Digital Bible Society, the bundled WEB provenance, catalog-supplied notice for the effective translation, and the complete generated third-party dependency inventory. Provider metadata is rendered only as React text. Opening the view performs no provider or filesystem read because version and notices are embedded at build time.
+
+External DBS and WEB-provenance buttons emit typed target IDs through the kernel and dedicated external-link port. The Windows command independently maps only those IDs to fixed HTTPS constants before calling the default browser; arbitrary URLs and local paths are rejected. The browser harness substitutes a deterministic event-producing fake. No remote origin enters the privileged webview CSP, and the view explicitly presents Verseform as independent rather than DBS-endorsed.
 
 ## Critical flows
 

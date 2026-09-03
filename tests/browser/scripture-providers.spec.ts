@@ -83,7 +83,7 @@ test("cancels an abandoned DBS preview without changing the document", async ({ 
   await editor.click();
   await page.keyboard.type("John 3:16 ");
   await page.locator(".scripture-reference").hover();
-  await page.getByRole("heading", { name: "Verseform" }).hover();
+  await page.getByRole("navigation", { name: "Application and scripture controls" }).hover();
   await page.waitForTimeout(450);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(editor).toHaveText("John 3:16 ");

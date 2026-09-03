@@ -7,7 +7,7 @@ import { COMMANDS } from "../src/app/commands";
 describe("application boundaries", () => {
   test("the React application shell is passive and does not reach concrete runtime or Tiptap APIs", () => {
     const app = readFileSync(new URL("../src/ui/App.tsx", import.meta.url), "utf8");
-    expect(app).not.toMatch(/@tiptap|adapters\/|createRuntimeAdapters|runtime\.(documents|scripture|output|window)/);
+    expect(app).not.toMatch(/@tiptap|adapters\/|createRuntimeAdapters|runtime\.(documents|scripture|output|externalLinks|window)/);
     expect(app).not.toMatch(/setTimeout|localStorage|fetch\(/);
     const controller = readFileSync(new URL("../src/app/controller.ts", import.meta.url), "utf8");
     const workspace = readFileSync(new URL("../src/app/workspace.ts", import.meta.url), "utf8");
@@ -23,7 +23,7 @@ describe("application boundaries", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining([
       "file.new", "file.open", "file.save", "file.print", "edit.find", "edit.paragraph",
-      "format.bold", "format.align", "format.link",
+      "help.credits", "format.bold", "format.align", "format.link",
     ]));
   });
 });

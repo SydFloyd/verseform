@@ -13,6 +13,7 @@ import type {
   TranslationCatalog,
 } from "./ports";
 import { selectInitialTranslation } from "./translationSelection";
+import type { CreditLinkId } from "./credits";
 import {
   DEFAULT_FORMATTING,
   DEFAULT_PARAGRAPH,
@@ -54,7 +55,8 @@ export type WorkspaceOverlay =
   | { type: "none" }
   | { type: "confirm"; action: PendingDocumentAction }
   | { type: "find"; query: string; replacement: string; index: number; count: number }
-  | { type: "paragraph"; draft: ParagraphSettings };
+  | { type: "paragraph"; draft: ParagraphSettings }
+  | { type: "credits"; link?: { target: CreditLinkId; stamp: OperationStamp }; error?: string };
 
 type TimerOperation = { phase: "scheduled" | "capturing" | "writing"; stamp: OperationStamp };
 type SaveOperation = {
@@ -149,6 +151,7 @@ export type WorkspaceEffect =
   | { type: "output.afterPaint"; mode: "print" | "pdf"; stamp: OperationStamp }
   | { type: "output.print"; snapshot: PrintSnapshot; stamp: OperationStamp }
   | { type: "output.savePdf"; snapshot: PrintSnapshot; suggestedName: string; stamp: OperationStamp }
+  | { type: "external.open"; target: CreditLinkId; stamp: OperationStamp }
   | { type: "prompt.link" };
 
 export type WorkspaceEvent =
@@ -208,6 +211,11 @@ export type WorkspaceEvent =
   | { type: "overlay.paragraphDraft"; draft: ParagraphSettings }
   | { type: "overlay.applyParagraph" }
   | { type: "overlay.closeParagraph" }
+  | { type: "overlay.openCredits" }
+  | { type: "overlay.closeCredits" }
+  | { type: "credits.openLink"; target: CreditLinkId }
+  | { type: "credits.linkOpened"; operationId: number }
+  | { type: "credits.linkFailed"; operationId: number; error: string }
   | { type: "editor.command"; instruction: EditorInstruction }
   | { type: "editor.promptLink" }
   | { type: "editor.linkResolved"; href: string | null };
@@ -983,6 +991,42 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       return state.overlay.type === "paragraph"
         ? { state: { ...state, overlay: { type: "none" } }, effects: [] }
         : { state, effects: [] };
+    case "overlay.openCredits":
+      return state.overlay.type === "confirm" || state.overlay.type === "paragraph"
+        ? { state, effects: [] }
+        : {
+          state: { ...state, overlay: { type: "credits" } },
+          effects: state.overlay.type === "find"
+            ? [{ type: "editor.dispatch", instruction: { type: "find.set", query: "", index: 0 } }]
+            : [],
+        };
+    case "overlay.closeCredits":
+      return state.overlay.type === "credits"
+        ? { state: { ...state, overlay: { type: "none" } }, effects: [] }
+        : { state, effects: [] };
+    case "credits.openLink": {
+      if (state.overlay.type !== "credits" || state.overlay.link) return { state, effects: [] };
+      const stamp = operationStamp(state);
+      return {
+        state: advance({ ...state, overlay: { type: "credits", link: { target: event.target, stamp } } }),
+        effects: [{ type: "external.open", target: event.target, stamp }],
+      };
+    }
+    case "credits.linkOpened":
+      return state.overlay.type === "credits" && state.overlay.link?.stamp.id === event.operationId
+        ? { state: { ...state, overlay: { type: "credits" } }, effects: [] }
+        : { state, effects: [] };
+    case "credits.linkFailed":
+      if (state.overlay.type !== "credits" || state.overlay.link?.stamp.id !== event.operationId) {
+        return { state, effects: [] };
+      } else {
+        const message = `Could not open the website: ${event.error}`;
+        const next = { ...state, overlay: { type: "credits" as const, error: message } };
+        return {
+          state: state.notice.id === state.overlay.link.stamp.noticeId ? notice(next, message) : next,
+          effects: [],
+        };
+      }
     case "editor.command":
       return { state, effects: [{ type: "editor.dispatch", instruction: event.instruction }] };
     case "editor.promptLink":

@@ -3,6 +3,7 @@ import { isLookupFresh } from "../core/lookup";
 import type { DetectedReference, ReferenceCandidate } from "../core/reference";
 import type { EditorGateway, FindResult, ParagraphSettings } from "../editor/gateway";
 import type { RuntimeAdapters, Translation } from "./ports";
+import type { CreditLinkId } from "./credits";
 import {
   COMMAND_IDS,
   commandForKeyStroke,
@@ -213,6 +214,14 @@ export class WorkspaceController {
     this.send({ type: "overlay.applyParagraph" });
   }
 
+  closeCredits(): void {
+    this.send({ type: "overlay.closeCredits" });
+  }
+
+  openCreditLink(target: CreditLinkId): void {
+    this.send({ type: "credits.openLink", target });
+  }
+
   private publish(): void {
     this.view = selectViewModel(this.state);
     this.dependencies.host.publishDiagnostics(selectDiagnostics(this.state, COMMAND_IDS));
@@ -374,6 +383,11 @@ export class WorkspaceController {
         void runtime.output.savePdf(effect.snapshot, effect.suggestedName)
           .then((saved) => this.send({ type: "output.pdfResult", operationId: effect.stamp.id, saved }))
           .catch((error: unknown) => this.send({ type: "output.failed", operationId: effect.stamp.id, mode: "pdf", error: errorMessage(error) }));
+        return;
+      case "external.open":
+        void runtime.externalLinks.open(effect.target)
+          .then(() => this.send({ type: "credits.linkOpened", operationId: effect.stamp.id }))
+          .catch((error: unknown) => this.send({ type: "credits.linkFailed", operationId: effect.stamp.id, error: errorMessage(error) }));
         return;
       case "prompt.link": {
         const href = this.dependencies.host.promptForLink(this.editor?.linkHref() ?? "https://");

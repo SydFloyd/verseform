@@ -6,6 +6,7 @@ export type WorkspaceCommandId =
   | "file.new" | "file.open" | "file.openRecent" | "file.save" | "file.saveAs"
   | "file.pageNumbers" | "file.print" | "file.savePdf"
   | "edit.undo" | "edit.redo" | "edit.find" | "edit.paragraph"
+  | "help.credits"
   | "format.bold" | "format.italic" | "format.underline" | "format.strike"
   | "format.subscript" | "format.superscript" | "format.fontFamily" | "format.fontSize"
   | "format.color" | "format.highlight" | "format.link" | "format.bulletList"
@@ -31,6 +32,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: "edit.redo", label: "Redo", shortcut: "Ctrl+Shift+Z" },
   { id: "edit.find", label: "Find / Replace", shortcut: "Ctrl+F", globalShortcut: true },
   { id: "edit.paragraph", label: "Paragraph" },
+  { id: "help.credits", label: "Credits & Licenses", shortcut: "F1", globalShortcut: true },
   { id: "format.bold", label: "Bold", shortcut: "Ctrl+B" },
   { id: "format.italic", label: "Italic", shortcut: "Ctrl+I" },
   { id: "format.underline", label: "Underline", shortcut: "Ctrl+U" },
@@ -78,6 +80,7 @@ export function eventForCommand(
     case "edit.redo": return { type: "editor.command", instruction: { type: "history.redo" } };
     case "edit.find": return { type: "overlay.openFind" };
     case "edit.paragraph": return { type: "overlay.openParagraph" };
+    case "help.credits": return { type: "overlay.openCredits" };
     case "format.bold": return { type: "editor.command", instruction: { type: "format.toggle", mark: "bold" } };
     case "format.italic": return { type: "editor.command", instruction: { type: "format.toggle", mark: "italic" } };
     case "format.underline": return { type: "editor.command", instruction: { type: "format.toggle", mark: "underline" } };
@@ -100,6 +103,9 @@ export function eventForCommand(
 export type KeyStroke = { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
 
 export function commandForKeyStroke(stroke: KeyStroke): WorkspaceCommandId | undefined {
+  if (stroke.key === "F1" && !stroke.ctrl && !stroke.meta && !stroke.shift && !stroke.alt) {
+    return "help.credits";
+  }
   if (!(stroke.ctrl || stroke.meta) || stroke.alt) return;
   const key = stroke.key.toLowerCase();
   if (key === "s") return stroke.shift ? "file.saveAs" : "file.save";

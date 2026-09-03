@@ -75,7 +75,7 @@ test("a full destination keeps unsaved writing recoverable", async ({ page }) =>
   await expect(page.getByRole("status")).toContainText("Recovery copy saved locally");
   await page.keyboard.press("Control+s");
   await expect(page.getByRole("status")).toContainText("Save failed: The destination is full or unavailable");
-  await expect(page.getByLabel("Current document")).toContainText("Unsaved changes");
+  await expect.poll(() => page.title()).toContain("Unsaved changes");
   await page.waitForTimeout(350);
   await page.reload();
   await expect(page.getByLabel("Recovery available")).toBeVisible();

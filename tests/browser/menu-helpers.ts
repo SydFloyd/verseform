@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 export async function chooseMenuItem(
   page: Page,
-  menu: "File" | "Edit",
+  menu: "File" | "Edit" | "Help",
   item: RegExp,
 ): Promise<void> {
   const button = page.getByRole("button", { name: menu, exact: true });

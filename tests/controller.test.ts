@@ -91,6 +91,9 @@ function harness() {
       print: async () => undefined,
       savePdf: async () => null,
     },
+    externalLinks: {
+      open: async () => undefined,
+    },
     window: {
       onCloseRequested: async () => () => undefined,
       setTitle: async () => undefined,

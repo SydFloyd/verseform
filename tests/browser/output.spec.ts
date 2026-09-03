@@ -36,7 +36,7 @@ test("freezes output settings and preserves the document when Save PDF is cancel
 
   await expect(page.getByRole("status")).toContainText("PDF export canceled");
   await expect(editor).toHaveText("Writing that must survive a canceled export.");
-  await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
+  await expect.poll(() => page.title()).toContain("Unsaved changes");
   await expect(page.frameLocator('iframe[title="Print/PDF preview"]').locator("body"))
     .toContainText("Page 1");
 });
@@ -49,7 +49,7 @@ test("reports an unwritable PDF destination without changing open writing", asyn
 
   await expect(page.getByRole("status")).toContainText("selected PDF destination is not writable");
   await expect(editor).toHaveText("Keep this exact writing after output failure.");
-  await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
+  await expect.poll(() => page.title()).toContain("Unsaved changes");
 });
 
 test("offline output makes no scripture-provider request", async ({ page }) => {

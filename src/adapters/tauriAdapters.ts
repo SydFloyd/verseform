@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type {
-  DocumentStore, OpenedDocument, OutputAdapter, PreferenceStore, RecentDocument, RecoverySnapshot,
+  DocumentStore, ExternalLinkAdapter, OpenedDocument, OutputAdapter, PreferenceStore, RecentDocument, RecoverySnapshot,
   RuntimeAdapters, SavedDocument, WindowAdapter,
 } from "../app/ports";
+import type { CreditLinkId } from "../app/credits";
 import { migrateVerseformDocument, type VerseformDocument } from "../core/document";
 import type { PrintSnapshot } from "../core/output";
 import type { DbsTransport, DbsTransportResponse } from "./dbsScriptureProvider";
@@ -80,6 +81,12 @@ class TauriWindowAdapter implements WindowAdapter {
   async close() { await getCurrentWindow().destroy(); }
 }
 
+class TauriExternalLinkAdapter implements ExternalLinkAdapter {
+  async open(target: CreditLinkId): Promise<void> {
+    await invoke("open_credits_link", { target });
+  }
+}
+
 export function createTauriAdapters(_delayMs: number): RuntimeAdapters {
   const scripture = new CompositeScriptureProvider(
     new WebScriptureProvider(),
@@ -87,6 +94,7 @@ export function createTauriAdapters(_delayMs: number): RuntimeAdapters {
   );
   return {
     scripture, preferences: new TauriPreferenceStore(), documents: new TauriDocumentStore(),
-    output: new WebView2OutputAdapter(), window: new TauriWindowAdapter(), kind: "tauri",
+    output: new WebView2OutputAdapter(), externalLinks: new TauriExternalLinkAdapter(),
+    window: new TauriWindowAdapter(), kind: "tauri",
   };
 }

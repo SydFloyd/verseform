@@ -1,6 +1,7 @@
 import type {
-  DocumentStore, OutputAdapter, PreferenceStore, RecentDocument, RecoverySnapshot, RuntimeAdapters, WindowAdapter,
+  DocumentStore, ExternalLinkAdapter, OutputAdapter, PreferenceStore, RecentDocument, RecoverySnapshot, RuntimeAdapters, WindowAdapter,
 } from "../app/ports";
+import { CREDIT_LINK_URLS, type CreditLinkId } from "../app/credits";
 import {
   parseVerseformDocument, serializeVerseformDocument, type VerseformDocument,
 } from "../core/document";
@@ -39,16 +40,24 @@ class BrowserDbsTransport implements DbsTransport {
     if (signal?.aborted) throw new DOMException("Catalog request cancelled.", "AbortError");
     window.dispatchEvent(new CustomEvent("verseform:catalog-request"));
     if (this.mode === "offline") throw new Error("DBS is unavailable while this device is offline.");
-    return { body: JSON.stringify([
+    const translations = [
       {
-        abbr: "ENGNASB", title: "New American Standard Bible", title_vernacular: "New American Standard Bible",
-        iso: "eng", script: "Latn", year: "1995", copyright: "NASB browser fixture — not production scripture.",
+        abbr: "ENGNASB",
+        title: this.mode === "untrusted-metadata"
+          ? "NASB <img data-provider-markup src=x onerror=alert(1)>"
+          : "New American Standard Bible",
+        title_vernacular: "New American Standard Bible",
+        iso: "eng", script: "Latn", year: "1995",
+        copyright: this.mode === "untrusted-metadata"
+          ? "<script data-provider-markup>alert('untrusted')</script>"
+          : "NASB browser fixture — not production scripture.",
       },
       {
         abbr: "ENGTEST", title: "DBS Test Bible", title_vernacular: "DBS Test Bible",
         iso: "eng", script: "Latn", year: "2026", copyright: "DBS test fixture — not production scripture.",
       },
-    ]) };
+    ];
+    return { body: JSON.stringify(translations) };
   }
 
   async getChapter(
@@ -192,6 +201,14 @@ class BrowserWindowAdapter implements WindowAdapter {
   async close() {}
 }
 
+class BrowserExternalLinkAdapter implements ExternalLinkAdapter {
+  async open(target: CreditLinkId): Promise<void> {
+    window.dispatchEvent(new CustomEvent("verseform:external-link", {
+      detail: Object.freeze({ target, url: CREDIT_LINK_URLS[target] }),
+    }));
+  }
+}
+
 export function createBrowserAdapters(delayMs: number): RuntimeAdapters {
   const web = new WebScriptureProvider({
     delayMs,
@@ -201,6 +218,7 @@ export function createBrowserAdapters(delayMs: number): RuntimeAdapters {
   return {
     scripture: new CompositeScriptureProvider(web, dbs),
     preferences: new BrowserPreferenceStore(), documents: new BrowserDocumentStore(),
-    output: new BrowserOutputAdapter(), window: new BrowserWindowAdapter(), kind: "browser",
+    output: new BrowserOutputAdapter(), externalLinks: new BrowserExternalLinkAdapter(),
+    window: new BrowserWindowAdapter(), kind: "browser",
   };
 }

@@ -111,7 +111,7 @@ test("recovery survives restart, dirty actions are guarded, and existing files a
   await page.keyboard.press("End");
   await page.keyboard.type(" plus autosaved work");
   await expect(page.getByRole("status")).toContainText("Autosaved Recovered.verseform");
-  await expect(page.getByLabel("Current document")).toContainText("Saved locally");
+  await expect.poll(() => page.title()).toBe("Recovered.verseform — Verseform");
 
   await page.reload();
   await page.keyboard.press("Control+o");

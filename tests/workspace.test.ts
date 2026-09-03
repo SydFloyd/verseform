@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 import { WEB_CANON } from "../src/core/canon";
 import { contentHash, type EditorNode, type VerseformDocument } from "../src/core/document";
 import type { Passage, Translation } from "../src/app/ports";
-import { eventForCommand } from "../src/app/commands";
-import { selectCommandEnabled, selectDiagnostics, selectDirty, selectWindowTitle } from "../src/app/selectors";
+import { commandForKeyStroke, eventForCommand } from "../src/app/commands";
+import { selectCommandEnabled, selectDiagnostics, selectDirty, selectViewModel, selectWindowTitle } from "../src/app/selectors";
 import {
   COMMAND_IDS,
 } from "../src/app/commands";
@@ -357,6 +357,44 @@ describe("workspace kernel", () => {
     const undoReady = { ...ready, formatting: { ...ready.formatting, canUndo: true } };
     expect(selectCommandEnabled(undoReady, "edit.undo")).toBe(true);
     expect(eventForCommand(undoReady, "edit.undo")).toEqual({ type: "editor.command", instruction: { type: "history.undo" } });
+  });
+
+  test("credits are a local overlay with effective metadata and stamped allowlisted link effects", () => {
+    const ready = step(initial(), { type: "editor.ready" }).state;
+    const selected = {
+      ...ready,
+      scripture: { ...ready.scripture, translations: [web, nasb], selectedId: nasb.id },
+    };
+    const view = selectViewModel(selected);
+    expect(view.credits).toEqual(expect.objectContaining({
+      version: "0.1.0",
+      softwarePackageCount: expect.any(Number),
+      translation: expect.objectContaining({ name: nasb.name, notice: nasb.attribution }),
+    }));
+    expect(view.credits.softwareNotices).toContain("VERSEFORM DEPENDENCY LICENSE INVENTORY");
+
+    const opened = step(selected, eventForCommand(selected, "help.credits")!);
+    expect(opened.state.overlay).toEqual({ type: "credits" });
+    expect(selectCommandEnabled(opened.state, "file.open")).toBe(false);
+    const openingLink = step(opened.state, { type: "credits.openLink", target: "digital-bible-society" });
+    const linkEffect = effect(openingLink.effects, "external.open");
+    expect(linkEffect.target).toBe("digital-bible-society");
+    expect(openingLink.state.overlay.type === "credits" && openingLink.state.overlay.link?.stamp.id).toBe(linkEffect.stamp.id);
+    expect(step(openingLink.state, { type: "credits.linkOpened", operationId: linkEffect.stamp.id + 1 }).state).toBe(openingLink.state);
+    expect(step(openingLink.state, { type: "credits.linkOpened", operationId: linkEffect.stamp.id }).state.overlay).toEqual({ type: "credits" });
+    const failed = step(openingLink.state, {
+      type: "credits.linkFailed", operationId: linkEffect.stamp.id, error: "No default browser",
+    });
+    expect(failed.state.overlay).toEqual({
+      type: "credits", error: "Could not open the website: No default browser",
+    });
+
+    const find = step(selected, { type: "overlay.openFind" });
+    const creditsFromFind = step(find.state, { type: "overlay.openCredits" });
+    expect(effect(creditsFromFind.effects, "editor.dispatch").instruction).toEqual({
+      type: "find.set", query: "", index: 0,
+    });
+    expect(commandForKeyStroke({ key: "F1", ctrl: false, meta: false, shift: false, alt: false })).toBe("help.credits");
   });
 
   test("a completed background recovery cannot overwrite a newer notice", () => {
