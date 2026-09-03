@@ -44,7 +44,10 @@ impl ScriptureClient {
             .redirect(Policy::none())
             .connect_timeout(Duration::from_secs(4))
             .timeout(Duration::from_secs(8))
-            .user_agent("Verseform/0.1 (+https://github.com/SydFloyd/verseform)")
+            .user_agent(format!(
+                "Verseform/{} (+https://github.com/SydFloyd/verseform)",
+                env!("CARGO_PKG_VERSION")
+            ))
             .build()
             .map(|http| Self {
                 http,
@@ -118,17 +121,21 @@ fn request(client: &Client, url: &str, limit: usize) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "DBS returned text in an unsupported encoding.".into())
 }
 
-fn cached_request(
-    client: &Client,
+fn cache_is_fresh(entry: &CacheEntry, current_time_ms: u64, ttl_ms: u64) -> bool {
+    current_time_ms.saturating_sub(entry.fetched_at_ms) <= ttl_ms
+}
+
+fn cached_request_with_fetch(
     path: &Path,
-    url: &str,
     limit: usize,
     ttl_ms: u64,
+    current_time_ms: u64,
     validate: impl Fn(&str) -> bool,
+    fetch: impl FnOnce() -> Result<String, String>,
 ) -> Result<DbsResponse, String> {
     let cached = read_cache(path, limit).filter(|entry| validate(&entry.body));
     if let Some(entry) = cached.as_ref()
-        && now_ms().saturating_sub(entry.fetched_at_ms) <= ttl_ms
+        && cache_is_fresh(entry, current_time_ms, ttl_ms)
     {
         return Ok(DbsResponse {
             body: entry.body.clone(),
@@ -136,7 +143,7 @@ fn cached_request(
             stale: false,
         });
     }
-    match request(client, url, limit) {
+    match fetch() {
         Ok(body) => {
             if !validate(&body) {
                 return cached.map_or_else(
@@ -153,7 +160,7 @@ fn cached_request(
             write_cache(
                 path,
                 &CacheEntry {
-                    fetched_at_ms: now_ms(),
+                    fetched_at_ms: current_time_ms,
                     body: body.clone(),
                 },
             )?;
@@ -171,6 +178,19 @@ fn cached_request(
             })
         }),
     }
+}
+
+fn cached_request(
+    client: &Client,
+    path: &Path,
+    url: &str,
+    limit: usize,
+    ttl_ms: u64,
+    validate: impl Fn(&str) -> bool,
+) -> Result<DbsResponse, String> {
+    cached_request_with_fetch(path, limit, ttl_ms, now_ms(), validate, || {
+        request(client, url, limit)
+    })
 }
 
 fn valid_catalog(body: &str) -> bool {
@@ -255,7 +275,7 @@ fn cache_root(profile_root: &Path) -> PathBuf {
     profile_root.join("scripture-cache-v1")
 }
 
-fn prune_chapters(directory: &Path) {
+fn prune_chapters_to_limits(directory: &Path, max_files: usize, max_bytes: u64) {
     let Ok(entries) = fs::read_dir(directory) else {
         return;
     };
@@ -272,12 +292,16 @@ fn prune_chapters(directory: &Path) {
         .collect();
     files.sort_by_key(|(_, _, modified)| *modified);
     let mut bytes: u64 = files.iter().map(|(_, length, _)| length).sum();
-    while files.len() > MAX_CHAPTER_FILES || bytes > MAX_CHAPTER_CACHE_BYTES {
+    while files.len() > max_files || bytes > max_bytes {
         let (path, length, _) = files.remove(0);
         if fs::remove_file(path).is_ok() {
             bytes = bytes.saturating_sub(length);
         }
     }
+}
+
+fn prune_chapters(directory: &Path) {
+    prune_chapters_to_limits(directory, MAX_CHAPTER_FILES, MAX_CHAPTER_CACHE_BYTES);
 }
 
 pub fn get_catalog(client: &ScriptureClient, profile_root: &Path) -> Result<DbsResponse, String> {
@@ -357,6 +381,59 @@ mod tests {
     }
 
     #[test]
+    fn cache_age_boundaries_reuse_fresh_data_and_mark_stale_offline_fallback() {
+        let directory = tempfile::tempdir().expect("temp directory");
+        let path = directory.path().join("catalog.json");
+        write_cache(
+            &path,
+            &CacheEntry {
+                fetched_at_ms: 1_000,
+                body: "[]".into(),
+            },
+        )
+        .expect("seed cache");
+
+        let fresh = cached_request_with_fetch(
+            &path,
+            16,
+            CATALOG_TTL_MS,
+            1_000 + CATALOG_TTL_MS,
+            |body| body == "[]",
+            || panic!("fresh cache must not request the provider"),
+        )
+        .expect("fresh cache");
+        assert!(fresh.cached);
+        assert!(!fresh.stale);
+
+        let stale = cached_request_with_fetch(
+            &path,
+            16,
+            CATALOG_TTL_MS,
+            1_001 + CATALOG_TTL_MS,
+            |body| body == "[]",
+            || Err("offline".into()),
+        )
+        .expect("stale offline fallback");
+        assert!(stale.cached);
+        assert!(stale.stale);
+
+        let refreshed_at = 2_000 + CHAPTER_TTL_MS;
+        let refreshed = cached_request_with_fetch(
+            &path,
+            16,
+            CHAPTER_TTL_MS,
+            refreshed_at,
+            |body| body == "[]" || body == "[1]",
+            || Ok("[1]".into()),
+        )
+        .expect("refreshed cache");
+        assert!(!refreshed.cached);
+        assert!(!refreshed.stale);
+        assert_eq!(refreshed.body, "[1]");
+        assert_eq!(read_cache(&path, 16).unwrap().fetched_at_ms, refreshed_at);
+    }
+
+    #[test]
     fn only_bounded_catalog_and_requested_chapter_shapes_are_cacheable() {
         assert!(valid_catalog(
             r#"[{"abbr":"ENGWEB","title":"World English Bible"}]"#
@@ -389,6 +466,29 @@ mod tests {
                 .count(),
             MAX_CHAPTER_FILES
         );
+    }
+
+    #[test]
+    fn chapter_cache_pruning_enforces_the_byte_bound() {
+        let directory = tempfile::tempdir().expect("temp directory");
+        for index in 0..4 {
+            fs::write(
+                directory.path().join(format!("chapter-{index}.json")),
+                b"12345678",
+            )
+            .expect("write cache fixture");
+        }
+        prune_chapters_to_limits(directory.path(), 10, 20);
+        let entries: Vec<_> = fs::read_dir(directory.path())
+            .expect("read cache directory")
+            .filter_map(Result::ok)
+            .collect();
+        let bytes: u64 = entries
+            .iter()
+            .map(|entry| entry.metadata().expect("cache metadata").len())
+            .sum();
+        assert!(entries.len() <= 10);
+        assert!(bytes <= 20);
     }
 
     #[test]

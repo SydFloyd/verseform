@@ -172,6 +172,14 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
         props: {
           decorations: (state) => referenceDecorationKey.getState(state),
           handleDOMEvents: {
+            click: (_view, event) => {
+              const element = referenceElement(event.target);
+              const candidate = element && candidateFrom(element);
+              if (!element || !candidate) return false;
+              if (isValidReference(candidate)) options.onClick(candidate);
+              else options.onHover(candidate, element.getBoundingClientRect());
+              return true;
+            },
             mouseover: (_view, event) => { showPreview(event.target); return false; },
             mouseout: (_view, event) => {
               const element = referenceElement(event.target);
@@ -197,14 +205,6 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
               if (isValidReference(candidate)) options.onClick(candidate);
               return true;
             },
-          },
-          handleClick: (_view, _position, event) => {
-            const element = referenceElement(event.target);
-            const candidate = element && candidateFrom(element);
-            if (!element || !candidate) return false;
-            if (isValidReference(candidate)) options.onClick(candidate);
-            else options.onHover(candidate, element.getBoundingClientRect());
-            return true;
           },
         },
       }),

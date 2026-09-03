@@ -189,14 +189,14 @@ live("loads the public DBS catalog and one passage without a secret", async () =
   const transport: DbsTransport = {
     async getCatalog(signal) {
       const response = await fetch("https://arc.dbs.org/api/bible-text/", {
-        headers: { Accept: "application/json", "User-Agent": "Verseform-live-smoke/0.1" }, signal,
+        headers: { Accept: "application/json", "User-Agent": "Verseform-live-smoke/0.2" }, signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return { body: await response.text() };
     },
     async getChapter(translationId, bookId, chapter, signal) {
       const response = await fetch(`https://arc.dbs.org/api/bible-text/${translationId}/${bookId}/${chapter}`, {
-        headers: { Accept: "application/json", "User-Agent": "Verseform-live-smoke/0.1" }, signal,
+        headers: { Accept: "application/json", "User-Agent": "Verseform-live-smoke/0.2" }, signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return { body: await response.text() };

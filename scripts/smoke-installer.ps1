@@ -4,8 +4,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$version = (Get-Content -Raw -LiteralPath (Join-Path $projectRoot "package.json") | ConvertFrom-Json).version
 if (-not $InstallerPath) {
-  $InstallerPath = Join-Path $projectRoot "src-tauri\target\release\bundle\nsis\Verseform_0.1.0_x64-setup.exe"
+  $InstallerPath = Join-Path $projectRoot "src-tauri\target\release\bundle\nsis\Verseform_${version}_x64-setup.exe"
 }
 $installer = (Resolve-Path $InstallerPath).Path
 $testRoot = if ($env:RUNNER_TEMP) {
@@ -41,7 +42,7 @@ try {
     ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
     Where-Object { $_.DisplayName -eq "Verseform" } |
     Select-Object -First 1
-  if (-not $registration -or $registration.DisplayVersion -ne "0.1.0") {
+  if (-not $registration -or $registration.DisplayVersion -ne $version) {
     throw "Expected Windows uninstall registration was not found."
   }
 

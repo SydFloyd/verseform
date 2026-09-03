@@ -1,6 +1,6 @@
 [package]
 name = "verseform"
-version = "0.1.0"
+version = "0.2.0"
 description = "A local-first scripture text editor"
 authors = ["Verseform"]
 edition = "2024"

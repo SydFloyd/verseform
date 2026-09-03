@@ -159,7 +159,7 @@ test("opens complete local credits by pointer and keyboard, escapes provider met
   const dialog = page.getByRole("dialog", { name: "Credits & Licenses" });
   await expect(dialog).toBeVisible();
   await expect(page.getByRole("button", { name: "Close Credits and Licenses" })).toBeFocused();
-  await expect(dialog).toContainText("Verseform 0.1.0");
+  await expect(dialog).toContainText("Verseform 0.2.0");
   await expect(dialog).toContainText("Digital Bible Society");
   await expect(dialog).toContainText("World English Bible");
   await expect(dialog).toContainText("NASB <img data-provider-markup src=x onerror=alert(1)>");

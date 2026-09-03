@@ -123,7 +123,7 @@ Writes are atomic: validate and serialize, write a sibling temporary file, flush
 
 ### Local profile
 
-The local profile stores the preferred translation, recent-document pointers, and modest UI/print preferences. Missing paths are harmless. Document contents, verse history, and provider responses are not telemetry.
+The local profile stores the preferred translation, recent-document pointers, and modest UI/print preferences. Missing paths are harmless. Document contents, verse history, and provider responses are not telemetry. The Windows application identifier `com.verseform.editor` is stable across Alpha and Beta, so an in-place per-user upgrade reaches the same profile, recovery, and scripture-cache roots. Upgrade and uninstall must preserve these user-data classes; a clean-runner lifecycle hashes representative seeded state before and after installation changes.
 
 ### Reference
 
@@ -213,6 +213,8 @@ Use the canonical regions and discriminated states above rather than independent
 - **Windows checks:** atomic file behavior, crash recovery, print/PDF, WebView2 behavior, installer, and a short end-to-end smoke at milestone gates.
 
 Every defect should leave a regression test at the cheapest layer that can truthfully reproduce it. During implementation, run the smallest owning test and its direct consumer; run `npm run check` once before a completed slice. Retain heavy PDF, installer, and native evidence only for release claims or previously unstable platform seams.
+
+Release evidence is produced from a clean Windows runner, not inferred from a developer workstation. The Beta workflow downloads the retained Alpha artifact by exact workflow run, exercises clean install and Alpha-to-Beta upgrade lifecycles, and uploads the Beta installer beside machine-readable commit, run, version, and SHA-256 records. The release record links that immutable run and states signing status, supported behavior, privacy, credits, and known limits.
 
 ## Refactor method
 

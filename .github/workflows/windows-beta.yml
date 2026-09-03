@@ -1,0 +1,71 @@
+name: Windows beta
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify-windows-beta:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Download retained Windows Alpha
+        uses: actions/download-artifact@v5
+        with:
+          name: verseform-0.1.0-windows-alpha
+          path: artifacts/alpha
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 33759181934
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Audit npm advisories
+        run: npm audit --audit-level=high
+      - name: Audit Rust advisories
+        run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
+      - name: Run regression and stabilization suite
+        run: npm run check
+      - name: Build Beta NSIS installer
+        run: npm run build:desktop
+      - name: Exercise clean installer lifecycle
+        run: npm run test:installer
+      - name: Exercise Alpha-to-Beta upgrade lifecycle
+        run: npm run test:upgrade
+      - name: Record artifact evidence
+        shell: pwsh
+        run: |
+          $installer = Resolve-Path "src-tauri/target/release/bundle/nsis/Verseform_0.2.0_x64-setup.exe"
+          $evidenceDirectory = New-Item -ItemType Directory -Force -Path "artifacts/beta-release"
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($installer))" | Set-Content -Encoding ascii -LiteralPath (Join-Path $evidenceDirectory "SHA256SUMS.txt")
+          @{
+            version = "0.2.0"
+            commit = $env:GITHUB_SHA
+            workflowRun = $env:GITHUB_RUN_ID
+            runner = $env:RUNNER_NAME
+            sha256 = $hash
+          } | ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath (Join-Path $evidenceDirectory "release-evidence.json")
+          "### Verseform 0.2.0 Windows Beta" >> $env:GITHUB_STEP_SUMMARY
+          "- Commit: ``$env:GITHUB_SHA``" >> $env:GITHUB_STEP_SUMMARY
+          "- Installer SHA-256: ``$hash``" >> $env:GITHUB_STEP_SUMMARY
+          Write-Output "Beta installer SHA-256: $hash"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verseform-0.2.0-windows-beta
+          path: |
+            src-tauri/target/release/bundle/nsis/Verseform_0.2.0_x64-setup.exe
+            artifacts/beta-release/SHA256SUMS.txt
+            artifacts/beta-release/release-evidence.json
+          if-no-files-found: error
+          retention-days: 30

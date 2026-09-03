@@ -138,6 +138,21 @@ fn profile_recents_and_recovery_survive_a_fresh_storage_read() {
 }
 
 #[test]
+fn recent_profile_stays_bounded_across_repeated_documents() {
+    let directory = tempdir().expect("temporary directory");
+    let profile_root = directory.path().join("profile");
+    for index in 0..14 {
+        let path = directory.path().join(format!("document-{index}.verseform"));
+        save_atomic(&path, &fixture(&format!("document {index}"))).expect("save document");
+        record_recent(&profile_root, &path).expect("record recent document");
+    }
+    let recent = list_recent(&profile_root);
+    assert_eq!(recent.len(), 10);
+    assert_eq!(recent[0].display_name, "document-13.verseform");
+    assert_eq!(recent[9].display_name, "document-4.verseform");
+}
+
+#[test]
 fn windows_output_route_targets_the_installed_webview2_runtime() {
     let version = tauri::webview_version().expect("WebView2 Runtime must be installed");
     assert!(!version.trim().is_empty());
