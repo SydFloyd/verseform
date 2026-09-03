@@ -77,6 +77,22 @@ describe("scripture provider contract", () => {
     expect(passage.attribution).toContain("Fixture copyright notice.");
     expect(transport.chapterCalls).toBe(1);
   });
+
+  it("repairs glued punctuation and removes only unpunctuated DBS section-heading suffixes", () => {
+    const verses = parseDbsChapter(JSON.stringify([{
+      "JM1.1": "James, a bond-servant of God and of the Lord Jesus Christ,To the twelve tribes who are dispersed abroad: Greetings.",
+      "JM1.2": "He spoke.She listened.",
+      "JM1.27": "to keep oneself unstained by the world.The Sin of Partiality",
+    }]), 1);
+    expect(verses.get(1)).toBe("James, a bond-servant of God and of the Lord Jesus Christ, To the twelve tribes who are dispersed abroad: Greetings.");
+    expect(verses.get(2)).toBe("He spoke. She listened.");
+    expect(verses.get(27)).toBe("to keep oneself unstained by the world.");
+
+    const chapterFour = parseDbsChapter(JSON.stringify([{
+      "JM4.17": "Therefore, to one who knows the right thing to do and does not do it, to him it is sin.Misuse of Riches",
+    }]), 4);
+    expect(chapterFour.get(17)).toBe("Therefore, to one who knows the right thing to do and does not do it, to him it is sin.");
+  });
 });
 
 describe("startup translation policy", () => {

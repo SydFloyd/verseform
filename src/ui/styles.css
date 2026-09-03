@@ -131,6 +131,12 @@ button:disabled {
   box-shadow: 0 0.45rem 1.2rem rgb(64 52 33 / 7%);
 }
 
+.command-deck {
+  position: sticky;
+  z-index: 25;
+  top: 0;
+}
+
 .toolbar select,
 .toolbar input:not([type="checkbox"]):not([type="color"]) {
   min-height: var(--control-height);
@@ -539,15 +545,6 @@ button:disabled {
   border-radius: 0.18rem;
   color: #6a5840;
   background: #f3eee3;
-}
-
-.editor-hint {
-  position: absolute;
-  right: 1rem;
-  bottom: 0.85rem;
-  margin: 0;
-  color: #6f6556;
-  font-size: 0.78rem;
 }
 
 kbd {

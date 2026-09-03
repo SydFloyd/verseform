@@ -2,7 +2,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TextStyleKit } from "@tiptap/extension-text-style";
-import type { Editor } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
@@ -38,6 +38,23 @@ import {
 } from "./gateway";
 
 const EMPTY_DOCUMENT: EditorNode = { type: "doc", content: [{ type: "paragraph" }] };
+
+const IndentationKeys = Extension.create({
+  name: "verseformIndentationKeys",
+  priority: 1_100,
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => {
+        dispatchInstruction(this.editor, { type: "format.indent", direction: 1 });
+        return true;
+      },
+      "Shift-Tab": () => {
+        dispatchInstruction(this.editor, { type: "format.indent", direction: -1 });
+        return true;
+      },
+    };
+  },
+});
 
 function formattingFor(editor: Editor): EditorFormatting {
   const textStyle = editor.getAttributes("textStyle");
@@ -216,6 +233,7 @@ export function EditorSurface(props: EditorSurfaceProps) {
       ParagraphStyle,
       FindReplace,
       Citation,
+      IndentationKeys,
       DocumentLimits.configure({ onLimit: () => callbacks.current.onLimit() }),
       ReferenceDecorations.configure({
         onHover: (candidate, rect) => callbacks.current.onReferenceHover(candidate, {

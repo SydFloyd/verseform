@@ -83,6 +83,29 @@ test("keeps command buttons quiet until hover or active feedback is needed", asy
   await expect(bold).toHaveCSS("border-top-color", "rgb(107, 77, 47)");
 });
 
+test("keeps the command deck available while the document scrolls and omits the starter hint", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 960, height: 540 });
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expect(page.getByText("Try John 3:16 followed by a space.")).toHaveCount(0);
+
+  const editor = page.getByRole("textbox", { name: "Document editor" });
+  await editor.evaluate((element) => {
+    const html = Array.from({ length: 40 }, (_, index) => `<p>Writing line ${index + 1}</p>`).join("");
+    const data = new DataTransfer();
+    data.setData("text/html", html);
+    data.setData("text/plain", "Long writing");
+    element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }));
+  });
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect.poll(() => page.locator(".command-deck").evaluate((element) => element.getBoundingClientRect().top)).toBe(0);
+  await expect(page.getByRole("button", { name: "File", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bold" })).toBeVisible();
+  const screenshot = await page.screenshot({ path: "artifacts/vfm-110-sticky-command-deck.png", fullPage: false });
+  await testInfo.attach("Sticky command deck", { body: screenshot, contentType: "image/png" });
+});
+
 test("shows the translation abbreviation at rest and searchable full titles when expanded", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());

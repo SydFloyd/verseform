@@ -22,12 +22,12 @@ The editor must provide:
 - Bulleted and numbered lists.
 - Superscript and subscript.
 - Text highlight and font color.
-- Standard indentation.
+- Standard indentation. Tab and Shift+Tab change the current paragraph or list nesting by exactly one level without moving focus out of the editor.
 - Left, center, right, and justified alignment.
 - Line spacing and paragraph spacing before and after.
 - Hyperlinks.
 - Undo/redo, find/replace, spellcheck, clean paste, and common keyboard shortcuts.
-- File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested.
+- File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested. The menu and formatting deck remains available while the document scrolls.
 - Accessible controls, visible focus states, and keyboard operation for core actions.
 - The native window title owns the visible Verseform identity, document name, and unsaved indicator. The document view does not repeat a visible Verseform heading above the controls.
 - Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing. Command buttons and the File/Edit/Help menu strip remain visually quiet at rest; hover, keyboard focus, and active state reveal their boundaries.
@@ -51,6 +51,8 @@ The editor will not initially include editable headers or footers, margin contro
 6. Clicking the formatted reference replaces it immediately with the verse text followed by a citation, for example: `[verse text] (John 3:16, NASB)`.
 7. Inserted citations are semantically marked and excluded from future reference detection. They remain editable by the user.
 8. Verse ranges must be supported when the referenced range is valid.
+
+Inserted scripture contains verse text only, not flattened section headings, and repairs unambiguous missing spacing introduced by provider serialization without rewriting legitimate wording.
 
 Available authorized translations are loaded from DBS. The compact selector shows the active translation's citation abbreviation at rest and expands to a keyboard-accessible, searchable list that presents each abbreviation with its full title. The user's preferred translation is stored in a local device profile and used by default across documents. On a first online session with no saved preference, NASB is preferred when the DBS catalog offers it. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations; that temporary fallback does not overwrite the saved preference.
 

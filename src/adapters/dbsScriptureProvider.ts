@@ -10,6 +10,10 @@ const MAX_TRANSLATIONS = 6_000;
 const MAX_VERSES = 250;
 const translationIdPattern = /^[A-Za-z0-9_-]{1,64}$/u;
 const verseKeyPattern = /^([1-3]?[A-Z]{1,3})(\d{1,3})\.(\d{1,3})([a-z]?)$/u;
+const headingMinorWords = new Set([
+  "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into",
+  "of", "on", "or", "the", "through", "to", "versus", "with", "without",
+]);
 
 export type DbsTransportResponse = { body: string; cached?: boolean; stale?: boolean };
 
@@ -45,6 +49,35 @@ function attribution(name: string, id: string, copyright?: string): string {
   return copyright
     ? `${name} (${citationLabel(id)}): ${copyright}`
     : `Scripture quotations from ${name} (${citationLabel(id)}), supplied by Digital Bible Society.`;
+}
+
+function probableSectionHeading(value: string): boolean {
+  if (!value || /[.!?;:]$/u.test(value)) return false;
+  const words = value.split(" ");
+  if (words.length < 2 || words.length > 12) return false;
+  let titleWords = 0;
+  for (const word of words) {
+    const plain = word.replace(/^[“‘(']+|[”’)',]+$/gu, "");
+    if (!plain) return false;
+    if (headingMinorWords.has(plain)) continue;
+    if (!/^[\p{Lu}\d][\p{L}\p{M}\d'’()-]*$/u.test(plain)) return false;
+    titleWords += 1;
+  }
+  return titleWords >= 2;
+}
+
+function normalizeDbsVerseText(value: string): string {
+  let text = value.replace(/\s+/gu, " ").trim();
+  const gluedSentenceBoundaries = [...text.matchAll(/[\p{Ll}\p{N}]\.(?=[\p{Lu}])/gu)];
+  const lastBoundary = gluedSentenceBoundaries.at(-1);
+  if (lastBoundary?.index !== undefined) {
+    const punctuationIndex = lastBoundary.index + lastBoundary[0].length - 1;
+    const possibleHeading = text.slice(punctuationIndex + 1);
+    if (probableSectionHeading(possibleHeading)) text = text.slice(0, punctuationIndex + 1);
+  }
+  return text
+    .replace(/([,;:!?])(?=[\p{Lu}“‘])/gu, "$1 ")
+    .replace(/([\p{Ll}\p{N}”’\])}]\.)(?=[\p{Lu}“‘])/gu, "$1 ");
 }
 
 export function parseDbsCatalog(body: string): Translation[] {
@@ -118,7 +151,7 @@ export function parseDbsChapter(
       }
       const verse = Number(match[3]);
       if (verse < 1 || verse > 250) throw new Error("DBS returned an invalid verse number.");
-      const text = value.replace(/\s+/gu, " ").trim();
+      const text = normalizeDbsVerseText(value);
       if (!text) throw new Error("DBS returned an empty verse.");
       const sections = verses.get(verse) ?? [];
       sections.push(text);

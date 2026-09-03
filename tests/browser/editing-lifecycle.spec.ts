@@ -7,6 +7,21 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+test("Tab changes paragraph indentation by exactly one level", async ({ page }) => {
+  const editor = page.getByRole("textbox", { name: "Document editor" });
+  const paragraph = editor.locator("p");
+  await editor.click();
+  await page.keyboard.type("Indented writing");
+
+  await page.keyboard.press("Tab");
+  await expect(paragraph).toHaveAttribute("data-indent", "1");
+  await page.keyboard.press("Tab");
+  await expect(paragraph).toHaveAttribute("data-indent", "2");
+  await page.keyboard.press("Shift+Tab");
+  await expect(paragraph).toHaveAttribute("data-indent", "1");
+  await expect(editor).toBeFocused();
+});
+
 test("formats with keyboard and toolbar controls, then preserves formatting on reopen", async ({ page }) => {
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.click();

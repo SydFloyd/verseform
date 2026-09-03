@@ -253,6 +253,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
           <button type="button" onClick={() => controller.discardRecovery()}>Discard</button>
         </section> : null}
 
+        <header className="command-deck">
         <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
           <div className="menu-strip" role="group" aria-label="Application menus">
           <ToolbarMenu id="file-menu" label="File" open={openMenu === "file"} buttonRef={fileMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "file" : undefined)}>
@@ -332,6 +333,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
             <ToolbarButton title={commandTitle("format.indent")} command={() => run("format.indent")}>→</ToolbarButton>
           </div>
         </nav>
+        </header>
 
         {find ? <section className="find-panel" role="dialog" aria-label="Find and replace" onKeyDown={(event) => {
           if (event.key === "Escape") controller.closeFind();
@@ -353,7 +355,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
           onReferenceHover={(candidate: PositionedReference, position) => controller.referenceHover(candidate, position)}
           onReferenceLeave={() => controller.referenceLeave()}
           onReferenceClick={(candidate: PositionedValidReference) => controller.referenceClick(candidate)}
-        /><p className="editor-hint">Try <kbd>John 3:16</kbd> followed by a space.</p></section>
+        /></section>
         <p className="status-line" role="status" aria-live="polite">{view.status}</p>
 
         {view.printSnapshot ? <section className="output-preview" aria-labelledby="output-heading"><div><p className="eyebrow">Immutable output snapshot</p><h2 id="output-heading">Print / PDF preview</h2></div><iframe title="Print/PDF preview" srcDoc={view.printSnapshot.html} data-testid="print-preview" /></section> : null}
