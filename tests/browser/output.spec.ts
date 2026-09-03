@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { chooseMenuItem, togglePageNumbers } from "./menu-helpers";
+import { chooseMenuItem, selectScriptureTranslation, togglePageNumbers } from "./menu-helpers";
 
 declare global {
   interface Window {
@@ -73,13 +73,13 @@ test("multi-page PDF contains every footer, notice, and optional page number", a
 }, testInfo) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Document editor" });
-  await page.getByRole("combobox", { name: "Scripture translation" }).selectOption("ENGTEST");
+  await selectScriptureTranslation(page, "ENGTEST");
   await editor.click();
   await page.keyboard.type("John 3:16 ");
   await page.locator(".scripture-reference").click();
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, TEST)");
 
-  await page.getByRole("combobox", { name: "Scripture translation" }).selectOption("WEB");
+  await selectScriptureTranslation(page, "WEB");
   await editor.click();
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");

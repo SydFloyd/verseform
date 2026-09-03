@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseMenuItem, togglePageNumbers } from "./menu-helpers";
+import { chooseMenuItem, selectScriptureTranslation, togglePageNumbers } from "./menu-helpers";
 
 test("walks from a detected reference through attributed PDF output", async ({
   page,
@@ -79,7 +79,7 @@ test("walks from a detected reference through attributed PDF output", async ({
 
 test("rejects a passage response after the document changes", async ({ page }) => {
   await page.goto("/?lookupDelay=350");
-  await page.getByRole("combobox", { name: "Scripture translation" }).selectOption("ENGTEST");
+  await selectScriptureTranslation(page, "ENGTEST");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.click();
   await page.keyboard.type("John 3:16 ");

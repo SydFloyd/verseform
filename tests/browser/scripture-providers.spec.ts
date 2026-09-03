@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectTranslation, scriptureTranslation, selectScriptureTranslation } from "./menu-helpers";
 
 async function reset(page: import("@playwright/test").Page, url = "/") {
   await page.goto(url);
@@ -15,10 +16,12 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
     });
   });
   await reset(page);
-  const translation = page.getByRole("combobox", { name: "Scripture translation" });
-  await expect(translation.locator("option")).toHaveCount(3);
-  await expect(translation).toHaveValue("ENGNASB");
-  await translation.selectOption("ENGTEST");
+  const translation = scriptureTranslation(page);
+  await expectTranslation(page, "ENGNASB");
+  await translation.click();
+  await expect(page.getByRole("listbox", { name: "Available translations" }).getByRole("option")).toHaveCount(3);
+  await page.keyboard.press("Escape");
+  await selectScriptureTranslation(page, "ENGTEST");
   await expect(page.getByRole("status")).toContainText("DBS Test Bible selected");
 
   const editor = page.getByRole("textbox", { name: "Document editor" });
@@ -39,15 +42,17 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
     .toContainText("DBS test fixture — not production scripture.");
 
   await page.reload();
-  await expect(translation).toHaveValue("ENGTEST");
+  await expectTranslation(page, "ENGTEST");
 });
 
 test("starts in explicit bundled WEB mode when the DBS catalog is offline", async ({ page }) => {
   await reset(page, "/?dbs=offline");
   await expect(page.getByText("Offline · WEB", { exact: true })).toBeVisible();
-  const translation = page.getByRole("combobox", { name: "Scripture translation" });
-  await expect(translation).toHaveValue("WEB");
-  await expect(translation.locator("option")).toHaveCount(1);
+  const translation = scriptureTranslation(page);
+  await expectTranslation(page, "WEB");
+  await translation.click();
+  await expect(page.getByRole("listbox", { name: "Available translations" }).getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Escape");
 
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.click();
@@ -59,26 +64,26 @@ test("starts in explicit bundled WEB mode when the DBS catalog is offline", asyn
 
 test("a failed DBS passage visibly falls back and can only insert as WEB", async ({ page }) => {
   await reset(page, "/?dbs=chapter-failure");
-  const translation = page.getByRole("combobox", { name: "Scripture translation" });
-  await translation.selectOption("ENGTEST");
+  const translation = scriptureTranslation(page);
+  await selectScriptureTranslation(page, "ENGTEST");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.click();
   await page.keyboard.type("John 3:16 ");
   const reference = page.locator(".scripture-reference");
   await reference.hover();
   await expect(page.getByRole("tooltip")).toContainText("Using bundled WEB because DBS Test Bible is unavailable");
-  await expect(translation).toHaveValue("WEB");
+  await expectTranslation(page, "WEB");
   await reference.click();
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
   await expect(page.locator('[data-translation="ENGTEST"]')).toHaveCount(0);
 
   await page.reload();
-  await expect(translation).toHaveValue("ENGTEST");
+  await expectTranslation(page, "ENGTEST");
 });
 
 test("cancels an abandoned DBS preview without changing the document", async ({ page }) => {
   await reset(page, "/?lookupDelay=350");
-  await page.getByRole("combobox", { name: "Scripture translation" }).selectOption("ENGTEST");
+  await selectScriptureTranslation(page, "ENGTEST");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await editor.click();
   await page.keyboard.type("John 3:16 ");

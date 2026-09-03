@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export async function chooseMenuItem(
   page: Page,
@@ -13,4 +13,20 @@ export async function chooseMenuItem(
 export async function togglePageNumbers(page: Page): Promise<void> {
   await page.getByRole("button", { name: "File", exact: true }).click();
   await page.getByRole("menuitemcheckbox", { name: /^Page numbers$/ }).click();
+}
+
+export function scriptureTranslation(page: Page) {
+  return page.getByRole("button", { name: /^Scripture translation:/ });
+}
+
+export async function selectScriptureTranslation(page: Page, translationId: string): Promise<void> {
+  const trigger = scriptureTranslation(page);
+  await trigger.click();
+  await page.getByRole("combobox", { name: "Search translations" }).fill(translationId);
+  await page.getByRole("listbox", { name: "Available translations" }).getByRole("option").first().click();
+  await expectTranslation(page, translationId);
+}
+
+export async function expectTranslation(page: Page, translationId: string): Promise<void> {
+  await expect(scriptureTranslation(page)).toHaveAttribute("data-translation-id", translationId);
 }

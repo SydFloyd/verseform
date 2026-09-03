@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { chooseMenuItem } from "./menu-helpers";
+import { chooseMenuItem, expectTranslation } from "./menu-helpers";
 
 test("keeps compact control groups visible and stable at representative Windows widths and scales", async ({ browser }, testInfo) => {
   for (const scenario of [
@@ -65,6 +65,55 @@ test("keeps compact control groups visible and stable at representative Windows 
   }
 });
 
+test("keeps command buttons quiet until hover or active feedback is needed", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+
+  const file = page.getByRole("button", { name: "File", exact: true });
+  const bold = page.getByRole("button", { name: "Bold" });
+  await expect(file).toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
+  await expect(bold).toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
+  await file.hover();
+  await expect(file).toHaveCSS("border-top-color", "rgb(112, 99, 78)");
+  await bold.hover();
+  await expect(bold).toHaveCSS("border-top-color", "rgb(112, 99, 78)");
+  await bold.click();
+  await expect(bold).toHaveAttribute("aria-pressed", "true");
+  await expect(bold).toHaveCSS("border-top-color", "rgb(107, 77, 47)");
+});
+
+test("shows the translation abbreviation at rest and searchable full titles when expanded", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expectTranslation(page, "ENGNASB");
+
+  const trigger = page.getByRole("button", { name: /^Scripture translation:/ });
+  await expect(trigger).toHaveText("NASB");
+  await expect(trigger).not.toContainText("New American Standard Bible");
+  await trigger.click();
+
+  const search = page.getByRole("combobox", { name: "Search translations" });
+  await expect(search).toBeFocused();
+  const translations = page.getByRole("listbox", { name: "Available translations" });
+  await expect(translations.getByRole("option", { name: /NASB — New American Standard Bible/ })).toBeVisible();
+  const screenshot = await page.screenshot({ path: "artifacts/vfm-100-translation-picker.png", fullPage: true });
+  await testInfo.attach("Expanded translation picker", { body: screenshot, contentType: "image/png" });
+  const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+  expect(accessibility.violations).toEqual([]);
+  await search.fill("test bible");
+  await expect(translations.getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expectTranslation(page, "ENGTEST");
+  await expect(trigger).toHaveText("TEST");
+
+  await trigger.press("ArrowDown");
+  await expect(search).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
 test("opens complete local credits by pointer and keyboard, escapes provider metadata, and returns focus", async ({ page }) => {
   await page.addInitScript(() => {
     const evidence = { catalogs: 0, passages: 0, links: [] as Array<{ target: string; url: string }> };
@@ -78,7 +127,7 @@ test("opens complete local credits by pointer and keyboard, escapes provider met
   await page.goto("/?dbs=untrusted-metadata");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await expect(page.getByRole("combobox", { name: "Scripture translation" })).toHaveValue("ENGNASB");
+  await expectTranslation(page, "ENGNASB");
 
   const before = await page.evaluate(() => (
     window as unknown as { __creditsEvidence: { catalogs: number; passages: number } }

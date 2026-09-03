@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseMenuItem } from "./menu-helpers";
+import { chooseMenuItem, expectTranslation } from "./menu-helpers";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -42,7 +42,7 @@ test("keeps formatting selectors and the window title synchronized with the docu
 
   await expect(font).toHaveValue("Garamond");
   await expect(size).toHaveValue("12pt");
-  await expect(page.getByRole("combobox", { name: "Scripture translation" })).toHaveValue("ENGNASB");
+  await expectTranslation(page, "ENGNASB");
   await expect.poll(() => page.title()).toBe("Untitled.verseform — Verseform");
 
   await editor.click();

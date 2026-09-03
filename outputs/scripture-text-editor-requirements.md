@@ -30,7 +30,7 @@ The editor must provide:
 - File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested.
 - Accessible controls, visible focus states, and keyboard operation for core actions.
 - The native window title owns the visible Verseform identity, document name, and unsaved indicator. The document view does not repeat a visible Verseform heading above the controls.
-- Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing.
+- Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing. Command buttons and the File/Edit/Help menu strip remain visually quiet at rest; hover, keyboard focus, and active state reveal their boundaries.
 
 The editor will not initially include editable headers or footers, margin controls, or DOCX support.
 
@@ -52,7 +52,7 @@ The editor will not initially include editable headers or footers, margin contro
 7. Inserted citations are semantically marked and excluded from future reference detection. They remain editable by the user.
 8. Verse ranges must be supported when the referenced range is valid.
 
-Available authorized translations are loaded from DBS. The user's preferred translation is stored in a local device profile and used by default across documents. On a first online session with no saved preference, NASB is preferred when the DBS catalog offers it. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations; that temporary fallback does not overwrite the saved preference.
+Available authorized translations are loaded from DBS. The compact selector shows the active translation's citation abbreviation at rest and expands to a keyboard-accessible, searchable list that presents each abbreviation with its full title. The user's preferred translation is stored in a local device profile and used by default across documents. On a first online session with no saved preference, NASB is preferred when the DBS catalog offers it. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations; that temporary fallback does not overwrite the saved preference.
 
 ## Documents and recovery
 

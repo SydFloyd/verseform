@@ -8,6 +8,7 @@ import {
 } from "../editor/EditorSurface";
 import type { Alignment } from "../editor/gateway";
 import { CreditsDialog } from "./CreditsDialog";
+import { TranslationPicker } from "./TranslationPicker";
 
 type MenuName = "file" | "edit" | "help";
 
@@ -80,7 +81,7 @@ function ToolbarMenu({ id, label, open, buttonRef, onToggle, children }: {
           if (menu) focusItem(menu, event.key === "ArrowDown" ? 1 : -1);
         });
       }}
-    >{label}<span aria-hidden="true">⌄</span></button>
+    >{label}</button>
     {open ? <div id={id} className="app-menu" role="menu" aria-label={`${label} menu`} onKeyDown={(event) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -288,11 +289,11 @@ export function App({ controller }: { controller: WorkspaceController }) {
               <option value="">Choose…</option>{view.recent.map((item) => <option key={item.path} value={item.path}>{item.displayName}</option>)}
             </select>
           </label> : null}
-          <label className="translation-picker">Scripture
-            <select aria-label="Scripture translation" value={view.translationId} onChange={(event) => controller.selectTranslation(event.target.value)}>
-              {view.translations.map((translation) => <option key={translation.id} value={translation.id}>{translation.name} ({translation.citationLabel})</option>)}
-            </select>
-          </label>
+          <TranslationPicker
+            translations={view.translations}
+            selectedId={view.translationId}
+            onSelect={(translationId) => controller.selectTranslation(translationId)}
+          />
           {view.catalogOffline ? <span className="offline-badge" role="note">Offline · WEB</span> : null}
           </div>
         </nav>
