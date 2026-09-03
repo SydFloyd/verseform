@@ -62,10 +62,21 @@ function Write-Utf8Json([string]$Path, [object]$Value) {
   [IO.File]::WriteAllText($Path, "$json`n", [Text.UTF8Encoding]::new($false))
 }
 
+function Get-Sha256([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "")
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Assert-SeedHashes([hashtable]$Expected) {
   foreach ($entry in $Expected.GetEnumerator()) {
     if (-not (Test-Path -LiteralPath $entry.Key)) { throw "Upgrade removed $($entry.Key)." }
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $entry.Key).Hash
+    $actual = Get-Sha256 $entry.Key
     if ($actual -ne $entry.Value) { throw "Upgrade changed $($entry.Key)." }
   }
 }
@@ -78,20 +89,28 @@ $installed = $false
 $createdProfile = $false
 $oldHttpProxy = $env:HTTP_PROXY
 $oldHttpsProxy = $env:HTTPS_PROXY
+$phase = "initialization"
 
 try {
+  $phase = "creating isolated test data"
+  Write-Output "Upgrade smoke: $phase."
   New-Item -ItemType Directory -Force -Path $installDirectory, $documentDirectory | Out-Null
   Copy-Item -LiteralPath (Join-Path $projectRoot "tests\fixtures\formatted-v2.verseform.json") -Destination $userDocument
 
+  $phase = "installing retained Alpha"
+  Write-Output "Upgrade smoke: $phase."
   $alphaInstall = Start-Process -FilePath $previousInstaller -ArgumentList @("/S", "/D=$installDirectory") -Wait -PassThru -WindowStyle Hidden
   if ($alphaInstall.ExitCode -ne 0) { throw "Alpha installer exited with code $($alphaInstall.ExitCode)." }
   $installed = $true
   if (-not (Test-Path -LiteralPath $appExecutable)) { throw "Alpha executable was not found." }
+  $phase = "validating Alpha registration"
   $alphaRegistration = Get-VerseformRegistration
   if (-not $alphaRegistration -or $alphaRegistration.DisplayVersion -ne "0.1.0") {
     throw "Expected Alpha registration was not found."
   }
 
+  $phase = "seeding Alpha profile, recovery, and scripture cache"
+  Write-Output "Upgrade smoke: $phase."
   $recoveryDirectory = Join-Path $profileRoot "recovery"
   $chapterDirectory = Join-Path $profileRoot "scripture-cache-v1\chapters"
   New-Item -ItemType Directory -Force -Path $recoveryDirectory, $chapterDirectory | Out-Null
@@ -128,34 +147,54 @@ try {
 
   $env:HTTP_PROXY = "http://127.0.0.1:9"
   $env:HTTPS_PROXY = "http://127.0.0.1:9"
+  $phase = "launching Alpha offline"
+  Write-Output "Upgrade smoke: $phase."
   $app = Start-And-ProveResponsive $appExecutable
   Stop-TestApp $app
   $app = $null
 
+  $phase = "capturing the Alpha preservation baseline"
   $seedPaths = @($userDocument, $profilePath, $recoveryPath, $catalogPath, $chapterPath)
   $seedHashes = @{}
-  foreach ($path in $seedPaths) { $seedHashes[$path] = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash }
+  foreach ($path in $seedPaths) { $seedHashes[$path] = Get-Sha256 $path }
 
+  $phase = "installing Beta over Alpha"
+  Write-Output "Upgrade smoke: $phase."
   $betaInstall = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installDirectory") -Wait -PassThru -WindowStyle Hidden
   if ($betaInstall.ExitCode -ne 0) { throw "Beta installer exited with code $($betaInstall.ExitCode)." }
   if (-not (Test-Path -LiteralPath $appExecutable)) { throw "Beta executable was not found after upgrade." }
+  $phase = "validating Beta registration"
   $betaRegistration = Get-VerseformRegistration
   if (-not $betaRegistration -or $betaRegistration.DisplayVersion -ne $version) {
     throw "Expected Beta registration was not found after upgrade."
   }
+  $phase = "validating data immediately after upgrade"
   Assert-SeedHashes $seedHashes
 
+  $phase = "launching upgraded Beta offline"
+  Write-Output "Upgrade smoke: $phase."
   $app = Start-And-ProveResponsive $appExecutable
   Stop-TestApp $app
   $app = $null
+  $phase = "validating data after Beta launch"
   Assert-SeedHashes $seedHashes
 
+  $phase = "uninstalling upgraded Beta"
+  Write-Output "Upgrade smoke: $phase."
   $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru -WindowStyle Hidden
   if ($uninstall.ExitCode -ne 0) { throw "Beta uninstaller exited with code $($uninstall.ExitCode)." }
   $installed = $false
   if (Test-Path -LiteralPath $appExecutable) { throw "Uninstall left the upgraded executable behind." }
   if (Get-VerseformRegistration) { throw "Uninstall left the upgraded Windows registration behind." }
+  $phase = "validating data after uninstall"
   Assert-SeedHashes $seedHashes
+} catch {
+  $failureMessage = "Upgrade smoke failed during ${phase}: $($_.Exception.Message)"
+  if ($env:GITHUB_ACTIONS) {
+    $escaped = $failureMessage.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+    Write-Output "::error title=Alpha-to-Beta upgrade failed::$escaped"
+  }
+  throw $failureMessage
 } finally {
   $env:HTTP_PROXY = $oldHttpProxy
   $env:HTTPS_PROXY = $oldHttpsProxy

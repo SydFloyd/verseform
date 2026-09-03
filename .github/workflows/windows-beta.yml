@@ -14,14 +14,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - name: Download retained Windows Alpha
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: verseform-0.1.0-windows-alpha
           path: artifacts/alpha
@@ -79,14 +79,14 @@ jobs:
         run: npm run check:native
       - name: Validate release boundaries and licenses
         run: npm run audit:release
-      - name: Audit Rust advisories
-        run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
       - name: Build Beta NSIS installer
         run: npm run build:desktop
       - name: Exercise Alpha-to-Beta upgrade lifecycle
         run: npm run test:upgrade
       - name: Exercise clean installer lifecycle
         run: npm run test:installer
+      - name: Audit Rust advisories
+        run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
       - name: Record artifact evidence
         shell: pwsh
         run: |
@@ -106,7 +106,7 @@ jobs:
           "- Installer SHA-256: ``$hash``" >> $env:GITHUB_STEP_SUMMARY
           Write-Output "::notice title=Beta installer SHA-256::$hash"
           Write-Output "Beta installer SHA-256: $hash"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: verseform-0.2.0-windows-beta
           path: |
