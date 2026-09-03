@@ -80,3 +80,11 @@ The first release targets Windows. Accounts, cloud synchronization, collaborativ
 ## Beta acceptance
 
 The Beta is ready when a daily Windows user can enter the writing surface immediately; create, format, recover, save, reopen, print, and export a document locally; select an authorized translation; recognize valid, fuzzy, and invalid references; preview and insert a passage with one click; reach every common action by predictable menu or shortcut; inspect DBS and software credits locally; and upgrade from the Alpha without losing documents, settings, recovery state, or required attribution.
+
+## Field Beta distribution and feedback
+
+- Publish the Windows Beta as a GitHub pre-release tied to the exact commit and installer that passed the clean Windows release gate. Attach the installer, its SHA-256 file, and machine-readable release evidence; do not rebuild or substitute the binary for publication.
+- The release page must state that the installer is unsigned, identify the possible Windows SmartScreen warning, link the privacy statement and DBS/WEB credits, and distinguish the Beta from a stable `1.0` release.
+- Published version assets are immutable by policy. A corrected binary receives a new patch version and complete release proof rather than replacing bytes under an existing tag.
+- Beta feedback is optional and user-initiated through a public repository issue form. The form requests only Windows/version context, safe reproduction steps, expected behavior, and whether accepted writing remained recoverable. It explicitly prohibits private writing, document/recovery/cache files, personal information, and credentials.
+- Verseform adds no telemetry, crash upload, account, updater, or background service for the field Beta. Distribution and feedback must preserve the same local-first privacy boundary as the application.

@@ -216,6 +216,12 @@ Every defect should leave a regression test at the cheapest layer that can truth
 
 Release evidence is produced from a clean Windows runner, not inferred from a developer workstation. The Beta workflow downloads the retained Alpha artifact by exact workflow run, exercises clean install and Alpha-to-Beta upgrade lifecycles, and uploads the Beta installer beside machine-readable commit, run, version, and SHA-256 records. The release record links that immutable run and states signing status, supported behavior, privacy, credits, and known limits.
 
+### Field Beta distribution boundary
+
+The public GitHub pre-release is a projection of clean-runner evidence, not a second build path. Its `v0.2.0` tag names the verified candidate commit; the installer, `SHA256SUMS.txt`, and `release-evidence.json` are copied byte-for-byte from that run. The release page links the full local release record and privacy statement, labels the build as an unsigned Windows Beta, and never presents it as stable or publisher-verified. Once published, an asset is immutable by policy; a changed executable requires a new version, a new clean run, and a new release.
+
+Field feedback is an optional human boundary rather than application telemetry. A repository issue form requests categorical environment context and invented, non-sensitive reproduction steps. It warns users not to attach documents, recovery state, cache contents, private writing, personal information, or credentials. Verseform performs no issue submission, version check, crash upload, background request, or update installation; opening the application cannot contact GitHub.
+
 ## Refactor method
 
 `VFM-090` applied this strangler sequence around the verified Alpha behavior; keep it as the rule for any later control-plane migration:
