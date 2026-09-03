@@ -67,7 +67,7 @@ const notice = [
 ].join("\n");
 const noticePath = resolve(root, "DEPENDENCY-LICENSES.txt");
 if (process.argv.includes("--write-notices")) writeFileSync(noticePath, notice, "utf8");
-else if (readFileSync(noticePath, "utf8") !== notice) {
+else if (readFileSync(noticePath, "utf8").replace(/\r\n/g, "\n") !== notice) {
   fail("DEPENDENCY-LICENSES.txt is stale; run node scripts/release-audit.mjs --write-notices");
 }
 
