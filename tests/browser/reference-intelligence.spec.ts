@@ -79,7 +79,8 @@ test("keeps previews inside the viewport and supports keyboard insertion", async
   expect(box!.x + box!.width).toBeLessThanOrEqual(901);
   expect(box!.y + box!.height).toBeLessThanOrEqual(621);
 
-  await reference.focus();
+  await page.keyboard.press("F6");
+  await expect(reference).toBeFocused();
   await reference.press("Enter");
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, NASB)");
   await expect(page.locator(".scripture-reference")).toHaveCount(0);

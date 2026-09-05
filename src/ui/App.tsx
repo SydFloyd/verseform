@@ -270,7 +270,15 @@ export function App({ controller }: { controller: WorkspaceController }) {
           <button type="button" onClick={() => controller.discardRecovery()}>Discard</button>
         </section> : null}
 
-        <header className="command-deck">
+        <p id="scripture-keyboard-help" className="sr-only">Press F6 to move from writing to detected scripture references and then to the application controls. Use arrow keys between references, Enter or Space to insert a valid reference, Shift+F6 to move backward, and Escape to return to writing.</p>
+
+        <header className="command-deck" onKeyDown={(event) => {
+          if (event.key !== "F6") return;
+          event.preventDefault();
+          setOpenMenu(undefined);
+          if (event.shiftKey) controller.focusReference("lastReference");
+          else controller.focusEditor();
+        }}>
         <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
           <div className="menu-strip" role="group" aria-label="Application menus">
           <ToolbarMenu id="file-menu" label="File" open={openMenu === "file"} buttonRef={fileMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "file" : undefined)}>
@@ -375,6 +383,10 @@ export function App({ controller }: { controller: WorkspaceController }) {
           onReferenceHover={(candidate: PositionedReference, position) => controller.referenceHover(candidate, position)}
           onReferenceLeave={() => controller.referenceLeave()}
           onReferenceClick={(candidate: PositionedValidReference) => controller.referenceClick(candidate)}
+          onFocusCommandDeck={() => {
+            setOpenMenu(undefined);
+            fileMenuButtonRef.current?.focus();
+          }}
         /></section>
         <p className="status-line" role="status" aria-live="polite">{view.status}</p>
 

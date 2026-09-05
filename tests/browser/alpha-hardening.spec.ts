@@ -27,10 +27,12 @@ test("keyboard users can skip controls, close previews, and stay inside confirma
 
   await page.keyboard.type("John 3:16 ");
   const reference = page.locator(".scripture-reference");
-  await reference.focus();
+  await page.keyboard.press("F6");
+  await expect(reference).toBeFocused();
   await expect(page.getByRole("tooltip")).toBeVisible();
   await reference.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(editor).toBeFocused();
 
   await page.keyboard.press("Control+f");
   await expect(page.getByLabel("Find", { exact: true })).toBeFocused();

@@ -52,8 +52,11 @@ function decorationsForBlock(
         role: valid ? "button" : "note",
         tabindex: "0",
         "aria-label": valid
-          ? `Preview and insert ${positioned.display}`
-          : `Invalid reference: ${positioned.display}. ${positioned.issue.message}`,
+          ? `Preview and insert ${positioned.display}. Press Enter or Space to insert; use arrow keys for other references.`
+          : `Invalid reference: ${positioned.display}. ${positioned.issue.message} Use arrow keys for other references.`,
+        "aria-keyshortcuts": valid
+          ? "Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight Escape F6 Shift+F6"
+          : "ArrowUp ArrowDown ArrowLeft ArrowRight Escape F6 Shift+F6",
         "data-reference-kind": positioned.kind,
         "data-verseform-reference": encodeURIComponent(JSON.stringify(positioned)),
       },
@@ -137,6 +140,13 @@ function candidateFrom(element: HTMLElement): PositionedReference | null {
   catch { return null; }
 }
 
+function moveReferenceFocus(root: HTMLElement, current: HTMLElement, direction: 1 | -1): void {
+  const references = Array.from(root.querySelectorAll<HTMLElement>("[data-verseform-reference]"));
+  const currentIndex = references.indexOf(current);
+  if (currentIndex < 0 || references.length < 2) return;
+  references[(currentIndex + direction + references.length) % references.length].focus();
+}
+
 export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>({
   name: "referenceDecorations",
 
@@ -192,17 +202,31 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
               if (referenceElement(event.target) && !referenceElement(event.relatedTarget)) options.onLeave();
               return false;
             },
-            keydown: (_view, event) => {
-              if (event.key === "Escape" && referenceElement(document.activeElement)) {
+            keydown: (view, event) => {
+              const activeReference = referenceElement(document.activeElement);
+              if (event.key === "Escape" && activeReference) {
                 event.preventDefault();
                 options.onLeave();
+                view.focus();
+                return true;
+              }
+              if (activeReference && ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(event.key)) {
+                event.preventDefault();
+                moveReferenceFocus(
+                  view.dom,
+                  activeReference,
+                  event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1,
+                );
                 return true;
               }
               if (event.key !== "Enter" && event.key !== " ") return false;
               const { candidate } = showPreview(document.activeElement);
               if (!candidate) return false;
               event.preventDefault();
-              if (isValidReference(candidate)) options.onClick(candidate);
+              if (isValidReference(candidate)) {
+                options.onClick(candidate);
+                view.focus();
+              }
               return true;
             },
           },

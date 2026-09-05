@@ -18,6 +18,11 @@ describe("application boundaries", () => {
     expect(workspace).not.toMatch(directBrowserApi);
   });
 
+  test("the VFM-140 acceptance journey reaches controls without programmatic focus or DOM injection", () => {
+    const journey = readFileSync(new URL("./browser/keyboard-navigation.spec.ts", import.meta.url), "utf8");
+    expect(journey).not.toMatch(/\.focus\(|\.evaluate\(|dispatchEvent\(/);
+  });
+
   test("the command catalog is finite and has one definition per command", () => {
     const ids = COMMANDS.map((command) => command.id);
     expect(new Set(ids).size).toBe(ids.length);

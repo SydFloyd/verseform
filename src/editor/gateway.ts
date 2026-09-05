@@ -64,9 +64,11 @@ export type EditorObservation = {
 
 export type FindResult = { count: number; index: number };
 
+export type EditorFocusPosition = "start" | "firstReference" | "lastReference";
+
 export type EditorInstruction =
   | { type: "content.set"; content: EditorNode }
-  | { type: "focus"; position?: "start" }
+  | { type: "focus"; position?: EditorFocusPosition }
   | { type: "references.refresh" }
   | { type: "history.undo" }
   | { type: "history.redo" }

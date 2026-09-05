@@ -56,6 +56,52 @@ const IndentationKeys = Extension.create({
   },
 });
 
+type FocusRegionOptions = { onFocusCommandDeck: () => void };
+
+function referenceElements(editor: Editor): HTMLElement[] {
+  return Array.from(editor.view.dom.querySelectorAll<HTMLElement>("[data-verseform-reference]"));
+}
+
+function activeReference(editor: Editor): HTMLElement | undefined {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && editor.view.dom.contains(active)
+    ? active.closest<HTMLElement>("[data-verseform-reference]") ?? undefined
+    : undefined;
+}
+
+function focusReference(editor: Editor, edge: "firstReference" | "lastReference"): boolean {
+  const references = referenceElements(editor);
+  const reference = edge === "firstReference" ? references[0] : references.at(-1);
+  reference?.focus();
+  return Boolean(reference);
+}
+
+const FocusRegionKeys = Extension.create<FocusRegionOptions>({
+  name: "verseformFocusRegions",
+  addOptions() {
+    return { onFocusCommandDeck: () => undefined };
+  },
+  addKeyboardShortcuts() {
+    const move = (direction: 1 | -1) => {
+      const reference = activeReference(this.editor);
+      if (direction > 0) {
+        if (reference || !focusReference(this.editor, "firstReference")) {
+          this.options.onFocusCommandDeck();
+        }
+      } else if (reference) {
+        this.editor.commands.focus();
+      } else {
+        this.options.onFocusCommandDeck();
+      }
+      return true;
+    };
+    return {
+      F6: () => move(1),
+      "Shift-F6": () => move(-1),
+    };
+  },
+});
+
 function formattingFor(editor: Editor): EditorFormatting {
   const textStyle = editor.getAttributes("textStyle");
   const blockType = editor.isActive("heading") ? "heading" : "paragraph";
@@ -97,7 +143,11 @@ function dispatchInstruction(editor: Editor, instruction: EditorInstruction): Ed
       editor.commands.setContent(instruction.content, { emitUpdate: false });
       return;
     case "focus":
-      editor.commands.focus(instruction.position);
+      if (instruction.position === "firstReference" || instruction.position === "lastReference") {
+        if (!focusReference(editor, instruction.position)) editor.commands.focus();
+      } else {
+        editor.commands.focus(instruction.position);
+      }
       return;
     case "references.refresh":
       refreshReferenceDecorations(editor);
@@ -216,6 +266,7 @@ export type EditorSurfaceProps = {
   onReferenceHover(candidate: PositionedReference, position: { top: number; left: number }): void;
   onReferenceLeave(): void;
   onReferenceClick(candidate: PositionedValidReference): void;
+  onFocusCommandDeck(): void;
   initialCanon: CanonMetadata;
 };
 
@@ -234,6 +285,7 @@ export function EditorSurface(props: EditorSurfaceProps) {
       FindReplace,
       Citation,
       IndentationKeys,
+      FocusRegionKeys.configure({ onFocusCommandDeck: () => callbacks.current.onFocusCommandDeck() }),
       DocumentLimits.configure({ onLimit: () => callbacks.current.onLimit() }),
       ReferenceDecorations.configure({
         onHover: (candidate, rect) => callbacks.current.onReferenceHover(candidate, {
@@ -252,6 +304,8 @@ export function EditorSurface(props: EditorSurfaceProps) {
         class: "writing-surface",
         role: "textbox",
         "aria-label": "Document editor",
+        "aria-describedby": "scripture-keyboard-help",
+        "aria-keyshortcuts": "F6 Shift+F6",
         "aria-multiline": "true",
         spellcheck: "true",
       },

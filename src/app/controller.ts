@@ -1,7 +1,7 @@
 import { contentHash, createVerseformDocument } from "../core/document";
 import { isLookupFresh } from "../core/lookup";
 import type { DetectedReference, ReferenceCandidate } from "../core/reference";
-import type { EditorGateway, FindResult, ParagraphSettings } from "../editor/gateway";
+import type { EditorFocusPosition, EditorGateway, FindResult, ParagraphSettings } from "../editor/gateway";
 import type { RuntimeAdapters, Translation } from "./ports";
 import type { CreditLinkId } from "./credits";
 import {
@@ -128,6 +128,10 @@ export class WorkspaceController {
   }
 
   focusEditor(position?: "start"): void {
+    this.send({ type: "editor.command", instruction: { type: "focus", position } });
+  }
+
+  focusReference(position: Extract<EditorFocusPosition, "firstReference" | "lastReference">): void {
     this.send({ type: "editor.command", instruction: { type: "focus", position } });
   }
 

@@ -19,8 +19,20 @@ The Beta keeps the Alpha application identity and document schema. Installing 0.
 - `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, `Ctrl+Shift+S`, and `Ctrl+P` run the matching document action.
 - `Ctrl+F` or `Ctrl+H` opens Find and Replace. `Ctrl+Z` and `Ctrl+Y` undo and redo.
 - `Ctrl+B`, `Ctrl+I`, and `Ctrl+U` toggle familiar text formatting. `Tab` and `Shift+Tab` indent or outdent the current paragraph by one level while editor focus remains active.
-- `Enter` or `Space` activates a focused detected reference. `Escape` closes transient previews, menus, and dialogs where applicable and returns focus predictably.
+- In corrected source after `VFM-140`, `F6` moves from writing to the first detected reference and then to File; `Shift+F6` reverses that route, arrow keys move between references, and `Enter` or `Space` inserts a focused valid reference. `Escape` returns from a reference to writing. The published `0.2.0` installer predates this route.
 - `F1` opens Credits & Licenses. The visible skip link lets a keyboard user move directly past the command deck to the writing surface.
+
+## First-use walkthrough
+
+This walkthrough describes the corrected source after `VFM-130` and `VFM-140`; it will apply to a future verified patch installer, not the immutable public `0.2.0` binary.
+
+1. Start writing, then type a reference such as `John 3:16` followed by a delimiter: a space, punctuation, or Enter. Detection happens locally only after that delimiter. A valid reference is highlighted; an invalid chapter or verse is marked with an explanation.
+2. Hover a reference to preview it, or press `F6` from writing to reach the first detected reference and use the arrow keys to move among references. Click a valid reference—or press `Enter` or `Space` while it is focused—to replace only that reference with the passage and editable citation. No replacement happens on hover or detection alone. Press `Escape` to return to writing.
+3. Press `Ctrl+Z` if you want the original reference back. The passage and citation are inserted as one undo step.
+4. The Scripture control shows the translation that will actually be used. Search and select an authorized online translation there. When that text is unavailable offline, Verseform visibly uses bundled public-domain WEB instead and labels the inserted citation accordingly; it does not silently call WEB by the saved online translation's name.
+5. Press `Ctrl+S` to choose a durable `.verseform` file, or `Ctrl+Shift+S` to save another copy. Autosave can update an already-saved document, while app-local recovery protects interrupted unsaved work; recovery is not a replacement for choosing a file you can reopen. In corrected source, restoring an older recovery while another draft is dirty first offers Save, Discard, or Cancel. Use `Ctrl+O` or File → Open Recent to reopen a saved document.
+6. Use File → Print to open the Windows/WebView2 print route. Use File → Save PDF to review a frozen, attributed copy and then choose the PDF destination. Until `VFM-150` is complete, inspect a multi-page exported PDF because the review dialog does not yet show its true page breaks and repeated footer.
+7. Optional defect or daily-use feedback belongs in the linked Beta feedback form. Describe the issue with invented text and never attach private writing, `.verseform` documents, recovery data, cache files, personal information, or credentials.
 
 ## Privacy and scripture credit
 
@@ -30,9 +42,9 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 
 ## Known limits
 
-- **Review findings, 2026-09-05:** the first independent test user has not started. These findings are present in the published `0.2.0` installer and are tracked in [`VFM-130`–`VFM-160`](outputs/verseform-roadmap.md). `VFM-130` corrects recovery restore in later source; the published installer has not been changed.
+- **Review findings, 2026-09-05:** the first independent test user has not started. These findings are present in the published `0.2.0` installer and are tracked in [`VFM-130`–`VFM-160`](outputs/verseform-roadmap.md). `VFM-130` and `VFM-140` correct recovery restore and keyboard reachability in later source; the published installer has not been changed.
 - **Recovery restore:** choosing Restore can replace current unsaved writing without a Save/Discard/Cancel prompt. Save any current draft before restoring an earlier recovery.
-- **Keyboard navigation:** Enter/Space activates a reference once focused, but a direct documented keyboard route from typing to that reference or the command deck is missing; the existing activation test uses programmatic focus. Tab/Shift+Tab remain indentation commands.
+- **Keyboard navigation in published 0.2.0:** Enter/Space activates a reference once focused, but that installer lacks the documented F6 route from typing to references and the command deck. `VFM-140` corrects the later source while preserving Tab/Shift+Tab indentation.
 - **PDF review:** the dedicated dialog shows the frozen document as a continuous sheet with one Page 1 label when numbering is enabled. It does not show actual exported page breaks or repeated footers. Multi-page PDF text/attribution checks pass; inspect the exported PDF for page layout until `VFM-150` closes this gap.
 - The installer is **not code-signed**. Windows SmartScreen may show an unrecognized-publisher warning. Verseform does not claim verified-publisher status.
 - The installed app needs Microsoft Edge WebView2. Setup may require a connection to obtain Microsoft's WebView2 bootstrapper when the runtime is absent.
