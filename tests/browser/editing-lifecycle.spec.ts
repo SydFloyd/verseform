@@ -1,5 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { chooseMenuItem } from "./menu-helpers";
+
+async function beginRecoveryRestore(
+  page: Page,
+  path: string,
+  recoveredWriting: string,
+  currentWriting: string,
+) {
+  await page.goto(path);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  const editor = page.getByRole("textbox", { name: "Document editor" });
+  await editor.fill(recoveredWriting);
+  await expect(page.getByRole("status")).toContainText("Recovery copy saved locally");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.reload();
+  await expect(page.getByLabel("Recovery available")).toBeVisible();
+  await editor.fill(currentWriting);
+  return editor;
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -134,3 +153,71 @@ test("recovery survives restart, dirty actions are guarded, and existing files a
   await expect(editor).toHaveText("Accepted work before a restart plus autosaved work");
   await expect(page.getByLabel("Recent files")).toContainText("Recovered.verseform");
 });
+
+test("recovery restore identifies its target and Save or Cancel preserves a different dirty draft", async ({ page }) => {
+  const editor = await beginRecoveryRestore(
+    page,
+    "/",
+    "Earlier writing from recovery",
+    "Different current writing",
+  );
+  const restore = page.getByRole("button", { name: "Restore" });
+
+  await restore.click();
+  const dialog = page.getByRole("dialog", { name: "Save changes?" });
+  await expect(dialog).toContainText("Save it before restoring Recovered.verseform");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(editor).toHaveText("Different current writing");
+  await expect(restore).toBeFocused();
+
+  await restore.click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toHaveText("Earlier writing from recovery");
+  await expect(page.getByRole("status")).toContainText("Recovery restored. Save to keep it.");
+  await expect.poll(() => page.evaluate((text) => Object.entries(localStorage).some(
+    ([key, value]) => key.startsWith("verseform.browser.document.") && value?.includes(text),
+  ), "Different current writing")).toBe(true);
+});
+
+test("Discard alone abandons the dirty draft and a delayed lookup cannot alter the restored recovery", async ({ page }) => {
+  const editor = await beginRecoveryRestore(
+    page,
+    "/?lookupDelay=600",
+    "Earlier writing from recovery",
+    "John 3:16 ",
+  );
+  await page.locator(".scripture-reference").click();
+  await expect.poll(() => page.evaluate(() => window.__VERSEFORM_DIAGNOSTICS__?.phases.insertion)).toBe("loading");
+
+  await page.getByRole("button", { name: "Restore" }).click();
+  const dialog = page.getByRole("dialog", { name: "Save changes?" });
+  await dialog.getByRole("button", { name: "Discard" }).click();
+  await expect(editor).toHaveText("Earlier writing from recovery");
+  await page.waitForTimeout(700);
+  await expect(editor).toHaveText("Earlier writing from recovery");
+  await expect(editor.locator(".scripture-citation")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__VERSEFORM_DIAGNOSTICS__?.phases.insertion)).toBe("idle");
+});
+
+for (const saveMode of ["cancel", "error"] as const) {
+  test(`a ${saveMode === "cancel" ? "canceled" : "failed"} Save never restores over the dirty draft`, async ({ page }) => {
+    const editor = await beginRecoveryRestore(
+      page,
+      `/?save=${saveMode}`,
+      "Earlier writing from recovery",
+      "Different current writing",
+    );
+    await page.getByRole("button", { name: "Restore" }).click();
+    const dialog = page.getByRole("dialog", { name: "Save changes?" });
+    await dialog.getByRole("button", { name: "Save" }).click();
+
+    await expect(page.getByRole("status")).toContainText(saveMode === "cancel"
+      ? "Save canceled."
+      : "Save failed: The destination is full or unavailable.");
+    await expect(dialog).toBeVisible();
+    await expect(editor).toHaveText("Different current writing");
+    await expect(page.getByLabel("Recovery available")).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(editor).toHaveText("Different current writing");
+  });
+}

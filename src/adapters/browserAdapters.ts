@@ -113,6 +113,7 @@ class BrowserDocumentStore implements DocumentStore {
 
   async saveAs(document: VerseformDocument, suggestedName: string) {
     if (this.saveMode === "error") throw new Error("The destination is full or unavailable.");
+    if (this.saveMode === "cancel") return null;
     const name = suggestedName.toLowerCase().endsWith(".verseform")
       ? suggestedName : `${suggestedName}.verseform`;
     const saved = { path: `browser://documents/${document.documentId}.verseform`, displayName: name };

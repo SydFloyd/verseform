@@ -30,6 +30,10 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 
 ## Known limits
 
+- **Review findings, 2026-09-05:** the first independent test user has not started. These findings are present in the published `0.2.0` installer and are tracked in [`VFM-130`–`VFM-160`](outputs/verseform-roadmap.md). `VFM-130` corrects recovery restore in later source; the published installer has not been changed.
+- **Recovery restore:** choosing Restore can replace current unsaved writing without a Save/Discard/Cancel prompt. Save any current draft before restoring an earlier recovery.
+- **Keyboard navigation:** Enter/Space activates a reference once focused, but a direct documented keyboard route from typing to that reference or the command deck is missing; the existing activation test uses programmatic focus. Tab/Shift+Tab remain indentation commands.
+- **PDF review:** the dedicated dialog shows the frozen document as a continuous sheet with one Page 1 label when numbering is enabled. It does not show actual exported page breaks or repeated footers. Multi-page PDF text/attribution checks pass; inspect the exported PDF for page layout until `VFM-150` closes this gap.
 - The installer is **not code-signed**. Windows SmartScreen may show an unrecognized-publisher warning. Verseform does not claim verified-publisher status.
 - The installed app needs Microsoft Edge WebView2. Setup may require a connection to obtain Microsoft's WebView2 bootstrapper when the runtime is absent.
 - A document is limited to 10 MiB serialized, 1,000,000 text characters, 50,000 content nodes, and 64 levels of nesting. An edit or paste that would cross a limit is rejected without replacing accepted writing.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { WEB_CANON } from "../src/core/canon";
 import { contentHash, type EditorNode, type VerseformDocument } from "../src/core/document";
-import type { Passage, Translation } from "../src/app/ports";
+import type { Passage, RecoverySnapshot, Translation } from "../src/app/ports";
 import { commandForKeyStroke, eventForCommand } from "../src/app/commands";
 import { selectCommandEnabled, selectDiagnostics, selectDirty, selectViewModel, selectWindowTitle } from "../src/app/selectors";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../src/app/commands";
 import {
   createInitialWorkspace,
+  EMPTY_CONTENT_HASH,
   transition,
   type OperationStamp,
   type WorkspaceEffect,
@@ -48,6 +49,10 @@ const content: EditorNode = {
 const changedContent: EditorNode = {
   type: "doc",
   content: [{ type: "paragraph", content: [{ type: "text", text: "John 3:16 changed" }] }],
+};
+const recoveredContent: EditorNode = {
+  type: "doc",
+  content: [{ type: "paragraph", content: [{ type: "text", text: "Earlier recovered writing" }] }],
 };
 const candidate = {
   kind: "valid" as const,
@@ -93,6 +98,47 @@ function documentFor(stamp: OperationStamp, body = content): VerseformDocument {
     updatedAt: "2026-09-03T12:00:01.000Z",
     content: body,
   };
+}
+
+function recoveryFor(): RecoverySnapshot {
+  return {
+    document: {
+      format: "verseform",
+      schemaVersion: 2,
+      title: "Recovered draft",
+      documentId: "recovery-document",
+      createdAt: "2026-09-02T12:00:00.000Z",
+      updatedAt: "2026-09-03T11:59:00.000Z",
+      content: recoveredContent,
+    },
+    sourcePath: "browser://documents/recovery-document.verseform",
+    savedContentHash: EMPTY_CONTENT_HASH,
+    contentHash: contentHash(recoveredContent),
+    capturedAtMs: new Date("2026-09-03T11:59:00.000Z").getTime(),
+  };
+}
+
+function dirtyDraftWithRecovery(): WorkspaceState {
+  const recovery = recoveryFor();
+  const base = {
+    ...initial(),
+    editorReady: true,
+    document: {
+      ...initial().document,
+      identity: {
+        documentId: "current-draft",
+        title: "Current draft",
+        createdAt: "2026-09-03T12:00:00.000Z",
+      },
+    },
+    library: { ...initial().library, recoveries: [recovery] },
+  };
+  return step(base, {
+    type: "editor.observed",
+    contentHash: contentHash(content),
+    formatting: DEFAULT_FORMATTING,
+    documentChanged: true,
+  }).state;
 }
 
 describe("workspace kernel", () => {
@@ -258,6 +304,161 @@ describe("workspace kernel", () => {
     expect(selectDirty(opened.state)).toBe(false);
     expect(effect(opened.effects, "editor.dispatch").instruction.type).toBe("content.set");
     expect(effect(step(initial(), { type: "document.request", action: { type: "close" } }).effects, "window.close")).toBeTruthy();
+  });
+
+  test("recovery restore shares the dirty gate and Discard retires prior document operations", () => {
+    const recovery = recoveryFor();
+    const withPreview = step(dirtyDraftWithRecovery(), {
+      type: "scripture.hover", candidate, top: 10, left: 20,
+    }).state;
+    const withLookups = step(withPreview, { type: "scripture.insertRequest", candidate }).state;
+    const oldRecoveryId = withLookups.persistence.recovery!.stamp.id;
+    const oldPreviewId = withLookups.scripture.previewOperation!.stamp.id;
+    const oldInsertionId = withLookups.scripture.insertion!.stamp.id;
+    const action = { type: "recovery" as const, recovery, displayName: "Recovered draft.verseform" };
+
+    const requested = step(withLookups, { type: "document.request", action });
+    expect(requested.effects).toEqual([]);
+    expect(requested.state.overlay).toEqual({ type: "confirm", action });
+    expect(requested.state.document.identity?.documentId).toBe("current-draft");
+
+    const canceled = step(requested.state, { type: "document.confirm", choice: "cancel" });
+    expect(canceled.state.document).toEqual(withLookups.document);
+    expect(canceled.state.persistence).toEqual(withLookups.persistence);
+    expect(canceled.state.scripture.insertion?.stamp.id).toBe(oldInsertionId);
+    expect(canceled.state.library.recoveries).toEqual([recovery]);
+
+    const discarded = step(requested.state, { type: "document.confirm", choice: "discard" });
+    expect(discarded.state.document).toEqual(expect.objectContaining({
+      identity: expect.objectContaining({ documentId: "recovery-document" }),
+      path: recovery.sourcePath,
+      displayName: "Recovered draft.verseform",
+      currentHash: recovery.contentHash,
+      savedHash: recovery.savedContentHash,
+    }));
+    expect(discarded.state.persistence).toEqual({});
+    expect(discarded.state.scripture).toEqual(expect.objectContaining({
+      preview: undefined,
+      previewOperation: undefined,
+      insertion: undefined,
+    }));
+    expect(discarded.state.library.recoveries).toEqual([]);
+    expect(discarded.effects.map((item) => item.type)).toEqual([
+      "document.discardRecovery",
+      "timer.cancel",
+      "timer.cancel",
+      "scripture.cancelLookups",
+      "editor.dispatch",
+      "window.title",
+    ]);
+    expect(effect(discarded.effects, "document.discardRecovery").documentId).toBe("current-draft");
+    expect(effect(discarded.effects, "editor.dispatch").instruction).toEqual({
+      type: "content.set", content: recoveredContent,
+    });
+
+    const targetEdited = step(discarded.state, {
+      type: "editor.observed",
+      contentHash: contentHash(changedContent),
+      formatting: DEFAULT_FORMATTING,
+      documentChanged: true,
+    });
+    const targetRecovery = targetEdited.state.persistence.recovery!;
+    expect(targetRecovery.stamp.documentId).toBe("recovery-document");
+    expect(step(targetEdited.state, {
+      type: "persistence.recoveryWritten", operationId: oldRecoveryId,
+    }).state).toBe(targetEdited.state);
+    expect(step(targetEdited.state, {
+      type: "scripture.previewResult", operationId: oldPreviewId, passage,
+    }).state).toBe(targetEdited.state);
+    expect(step(targetEdited.state, {
+      type: "scripture.insertionResult", operationId: oldInsertionId, passage,
+    }).state).toBe(targetEdited.state);
+  });
+
+  test("Save completes before recovery restore while canceled, failed, or stale saves retain the draft", () => {
+    const recovery = recoveryFor();
+    const action = { type: "recovery" as const, recovery, displayName: "Recovered draft.verseform" };
+    const requested = step(dirtyDraftWithRecovery(), { type: "document.request", action });
+    const saving = step(requested.state, { type: "document.confirm", choice: "save" });
+    const capture = effect(saving.effects, "editor.capture");
+    expect(saving.state.overlay).toEqual({ type: "confirm", action });
+    expect(saving.state.persistence.save?.continuation).toEqual(action);
+
+    const frozen = documentFor(capture.stamp, content);
+    const writing = step(saving.state, {
+      type: "editor.captured", stamp: capture.stamp, purpose: { type: "save" }, document: frozen,
+    });
+
+    for (const result of [
+      { type: "persistence.saveCanceled" as const, operationId: capture.stamp.id },
+      { type: "persistence.saveFailed" as const, operationId: capture.stamp.id, error: "destination unavailable", autosave: false },
+    ]) {
+      const stopped = step(writing.state, result);
+      expect(stopped.state.document.identity?.documentId).toBe("current-draft");
+      expect(stopped.state.document.currentHash).toBe(contentHash(content));
+      expect(stopped.state.overlay).toEqual({ type: "confirm", action });
+      expect(stopped.state.library.recoveries).toEqual([recovery]);
+      expect(stopped.state.persistence.save).toBeUndefined();
+      expect(stopped.state.persistence.recovery?.phase).toBe("scheduled");
+      expect(stopped.effects.some((item) => item.type === "editor.dispatch")).toBe(false);
+    }
+
+    const saved = step(writing.state, {
+      type: "persistence.saved",
+      operationId: capture.stamp.id,
+      document: frozen,
+      saved: { path: "browser://documents/current-draft.verseform", displayName: "Current draft.verseform" },
+      autosave: false,
+    });
+    expect(saved.state.document.identity?.documentId).toBe("recovery-document");
+    expect(saved.state.document.currentHash).toBe(recovery.contentHash);
+    expect(saved.state.overlay.type).toBe("none");
+    expect(effect(saved.effects, "document.discardRecovery").documentId).toBe(frozen.documentId);
+    expect(effect(saved.effects, "editor.dispatch").instruction).toEqual({
+      type: "content.set", content: recoveredContent,
+    });
+
+    const restoredWhileSaving = step(writing.state, { type: "document.confirm", choice: "discard" });
+    const newerRecovery = {
+      ...recoveryFor(),
+      document: { ...recoveryFor().document, documentId: "newer-recovery" },
+      capturedAtMs: recovery.capturedAtMs + 1_000,
+    };
+    const protectedRecoveryState = {
+      ...restoredWhileSaving.state,
+      library: { ...restoredWhileSaving.state.library, recoveries: [newerRecovery] },
+    };
+    const lateAfterRestore = step(protectedRecoveryState, {
+      type: "persistence.saved",
+      operationId: capture.stamp.id,
+      document: frozen,
+      saved: { path: "browser://documents/current-draft.verseform", displayName: "Current draft.verseform" },
+      autosave: false,
+    });
+    expect(lateAfterRestore.state).toBe(protectedRecoveryState);
+    expect(lateAfterRestore.effects).toEqual([]);
+    expect(lateAfterRestore.state.document.identity?.documentId).toBe("recovery-document");
+    expect(lateAfterRestore.state.library.recoveries).toEqual([newerRecovery]);
+
+    const changedWhileSaving = step(writing.state, {
+      type: "editor.observed",
+      contentHash: contentHash(changedContent),
+      formatting: DEFAULT_FORMATTING,
+      documentChanged: true,
+    });
+    const stale = step(changedWhileSaving.state, {
+      type: "persistence.saved",
+      operationId: capture.stamp.id,
+      document: frozen,
+      saved: { path: "browser://documents/current-draft.verseform", displayName: "Current draft.verseform" },
+      autosave: false,
+    });
+    expect(stale.state.document.currentHash).toBe(contentHash(changedContent));
+    expect(stale.state.document.identity?.documentId).not.toBe("recovery-document");
+    expect(stale.state.library.recoveries).toEqual([recovery]);
+    expect(stale.state.persistence.recovery?.phase).toBe("scheduled");
+    expect(stale.effects.some((item) => item.type === "editor.dispatch")).toBe(false);
+
   });
 
   test("catalog choice honors NASB, saved preference, offline WEB, and fallback", () => {

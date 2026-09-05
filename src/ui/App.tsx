@@ -244,6 +244,9 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const find = view.overlay.type === "find" ? view.overlay : undefined;
   const paragraph = view.overlay.type === "paragraph" ? view.overlay : undefined;
   const confirming = view.overlay.type === "confirm";
+  const recoveryConfirmation = view.overlay.type === "confirm" && view.overlay.action.type === "recovery"
+    ? view.overlay.action
+    : undefined;
   const credits = view.overlay.type === "credits" ? view.overlay : undefined;
   const pdfExport = view.overlay.type === "pdfExport" ? view.overlay : undefined;
   const formatting = view.formatting;
@@ -260,7 +263,10 @@ export function App({ controller }: { controller: WorkspaceController }) {
 
         {recovery ? <section className="recovery-banner" aria-label="Recovery available">
           <div><strong>Recovered writing is available</strong><span>{new Date(recovery.capturedAtMs).toLocaleString()}</span></div>
-          <button type="button" onClick={() => controller.restoreRecovery()}>Restore</button>
+          <button type="button" onClick={(event) => {
+            if (view.dirty) dialogReturnFocus.current = event.currentTarget;
+            controller.restoreRecovery();
+          }}>Restore</button>
           <button type="button" onClick={() => controller.discardRecovery()}>Discard</button>
         </section> : null}
 
@@ -411,7 +417,9 @@ export function App({ controller }: { controller: WorkspaceController }) {
         }}>Apply</button></div>
       </section></div> : null}
 
-      {confirming ? <div className="modal-backdrop"><section ref={dialogRef} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description" onKeyDown={(event) => trapFocus(event, dialogRef.current, () => resolvePending("cancel"))}><h2 id="unsaved-heading">Save changes?</h2><p id="unsaved-description">Your latest writing has not been saved to the document.</p><div><button autoFocus type="button" onClick={() => resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => resolvePending("save")}>Save</button></div></section></div> : null}
+      {confirming ? <div className="modal-backdrop"><section ref={dialogRef} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description" onKeyDown={(event) => trapFocus(event, dialogRef.current, () => resolvePending("cancel"))}><h2 id="unsaved-heading">Save changes?</h2><p id="unsaved-description">{recoveryConfirmation
+        ? `Your current writing has not been saved. Save it before restoring ${recoveryConfirmation.displayName}, recovered ${new Date(recoveryConfirmation.recovery.capturedAtMs).toLocaleString()}.`
+        : "Your latest writing has not been saved to the document."}</p><div><button autoFocus type="button" onClick={() => resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => resolvePending("save")}>Save</button></div></section></div> : null}
 
       {view.printSnapshot ? <><style>{view.printSnapshot.printCss}</style><article className="print-document print-surface" aria-hidden="true"><main dangerouslySetInnerHTML={{ __html: view.printSnapshot.bodyHtml }} /><footer className="print-footer"><strong>Powered by DBS</strong>{view.printSnapshot.notices.map((item) => <p className="translation-notice" key={item}>{item}</p>)}</footer>{view.printSnapshot.pageNumbers ? <div className="preview-page-number">Page 1</div> : null}</article></> : null}
     </>

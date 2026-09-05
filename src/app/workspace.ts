@@ -40,7 +40,8 @@ export type PendingDocumentAction =
   | { type: "new" }
   | { type: "open" }
   | { type: "recent"; path: string }
-  | { type: "close" };
+  | { type: "close" }
+  | { type: "recovery"; recovery: RecoverySnapshot; displayName: string };
 
 export type PreviewState = {
   candidate: DetectedReference;
@@ -150,6 +151,7 @@ export type WorkspaceEffect =
   | { type: "scripture.lookupPreview"; candidate: ReferenceCandidate; stamp: OperationStamp }
   | { type: "scripture.lookupInsertion"; candidate: ReferenceCandidate; stamp: OperationStamp }
   | { type: "scripture.verifyInsertion"; request: LookupRequest; passage: Passage; stamp: OperationStamp }
+  | { type: "scripture.cancelLookups" }
   | { type: "output.afterPaint"; mode: "print" | "pdf"; stamp: OperationStamp }
   | { type: "output.print"; snapshot: PrintSnapshot; stamp: OperationStamp }
   | { type: "output.savePdf"; snapshot: PrintSnapshot; suggestedName: string; stamp: OperationStamp }
@@ -180,7 +182,6 @@ export type WorkspaceEvent =
   | { type: "document.opened"; operationId: number; opened: OpenedDocument; contentHash: string }
   | { type: "document.openCanceled"; operationId: number }
   | { type: "document.openFailed"; operationId: number; error: string }
-  | { type: "recovery.restore"; recovery: RecoverySnapshot; displayName: string }
   | { type: "recovery.discard"; recovery: RecoverySnapshot }
   | { type: "scripture.catalogResult"; operationId: number; catalog: TranslationCatalog; preferred?: string }
   | { type: "scripture.catalogFailed"; operationId: number; error: string }
@@ -291,6 +292,47 @@ function schedulePersistence(state: WorkspaceState): TransitionResult {
 }
 
 function beginAction(state: WorkspaceState, action: PendingDocumentAction): TransitionResult {
+  if (action.type === "recovery") {
+    const { recovery } = action;
+    const next = notice({
+      ...state,
+      document: {
+        identity: {
+          documentId: recovery.document.documentId,
+          title: recovery.document.title,
+          createdAt: recovery.document.createdAt,
+        },
+        path: recovery.sourcePath,
+        displayName: action.displayName,
+        revision: state.document.revision + 1,
+        currentHash: recovery.contentHash,
+        savedHash: recovery.savedContentHash ?? EMPTY_CONTENT_HASH,
+      },
+      persistence: {},
+      library: {
+        ...state.library,
+        recoveries: state.library.recoveries.filter((item) => (
+          item.document.documentId !== recovery.document.documentId
+          || item.capturedAtMs !== recovery.capturedAtMs
+        )),
+      },
+      scripture: {
+        ...state.scripture,
+        preview: undefined,
+        previewOperation: undefined,
+        insertion: undefined,
+      },
+      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+      overlay: { type: "none" },
+    }, "Recovery restored. Save to keep it.");
+    return { state: next, effects: [
+      { type: "timer.cancel", timer: "recovery" },
+      { type: "timer.cancel", timer: "autosave" },
+      { type: "scripture.cancelLookups" },
+      { type: "editor.dispatch", instruction: { type: "content.set", content: recovery.document.content } },
+      titleEffect(next),
+    ] };
+  }
   if (action.type === "new") {
     const next: WorkspaceState = notice({
       ...state,
@@ -733,30 +775,6 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         library: { ...state.library, recentOperationId: state.document.operation.stamp.id },
       }, `Open failed: ${event.error}`), effects: [
         { type: "library.listRecent", stamp: state.document.operation.stamp },
-      ] };
-    }
-    case "recovery.restore": {
-      const next = notice({
-        ...state,
-        document: {
-          identity: {
-            documentId: event.recovery.document.documentId,
-            title: event.recovery.document.title,
-            createdAt: event.recovery.document.createdAt,
-          },
-          path: event.recovery.sourcePath,
-          displayName: event.displayName,
-          revision: state.document.revision + 1,
-          currentHash: event.recovery.contentHash,
-          savedHash: event.recovery.savedContentHash ?? EMPTY_CONTENT_HASH,
-        },
-        library: { ...state.library, recoveries: state.library.recoveries.filter((item) => item !== event.recovery) },
-      }, "Recovery restored. Save to keep it.");
-      return { state: next, effects: [
-        { type: "timer.cancel", timer: "recovery" },
-        { type: "timer.cancel", timer: "autosave" },
-        { type: "editor.dispatch", instruction: { type: "content.set", content: event.recovery.document.content } },
-        titleEffect(next),
       ] };
     }
     case "recovery.discard":

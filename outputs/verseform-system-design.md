@@ -143,6 +143,8 @@ Printing and PDF export operate on an immutable document snapshot, not the live 
 
 The output adapter is the only platform-specific seam. The browser harness proves preview focus containment, both pre-export and native-dialog cancellation, immutable option changes, and a generated/text-extracted representative multi-page Edge PDF; native checks cover WebView2 browser-preview availability and destination validation.
 
+The 2026-09-05 review found a remaining presentation gap: the dialog's `srcDoc` renders continuous screen HTML and a literal Page 1, while actual pagination and counters are applied only for print. Sharing snapshot content has not established visual pagination parity. `VFM-150` owns bringing the preview into agreement with the exported PDF under the existing requirements; editing-view pagination remains excluded.
+
 ### Beta interaction surface
 
 The native window title is the visible application identity and carries the document name and unsaved state. The content view begins with a compact menu/command row, a compact formatting row, and then the writing surface; it does not repeat a visible Verseform wordmark or permanent starter hint. The two-row command deck remains sticky as the continuous document scrolls. Removing visual guidance must not remove the window's accessible name, landmark labels, or skip-to-editor path.
@@ -170,6 +172,8 @@ Stale, cancelled, malformed, unauthorized, or offline responses cannot mutate th
 ### Save and recover
 
 Editor observations update revision/current hash; dirty state is derived and a stamped scheduler effect replaces any older recovery/autosave timer. Explicit Save freezes and validates one immutable editor snapshot before emitting a native write effect. A matching success updates the saved-content hash and clears superseded recovery data; a late success cannot mark newer writing clean. On restart, Verseform offers recovery only when the recovery snapshot is newer or differs from the saved artifact.
+
+Recovery Restore is a document action carrying the selected recovery identity, display name, and captured time. A different dirty draft therefore enters the same Save/Discard/Cancel overlay as New, Open, Recent, and Close. Cancel retains the draft; Save continues only after the exact frozen draft is saved; cancellation, failure, or intervening writing does not restore; and Discard explicitly abandons the draft before switching identity. The authorized switch clears the previous persistence, preview, insertion, and output owners before `content.set`, cancels their timers and lookups, and stamps subsequent recovery work with the restored document identity. Recovery writes and discards are serialized per document at the controller boundary so an older write cannot overtake cleanup or a cleanup overtake newer writing. Late results find no owning operation and cannot mutate the restored document or its recovery state.
 
 ### Print and export
 
@@ -221,6 +225,24 @@ Release evidence is produced from a clean Windows runner, not inferred from a de
 The public GitHub pre-release is a projection of clean-runner evidence, not a second build path. Its `v0.2.0` tag names the verified candidate commit; the installer, `SHA256SUMS.txt`, and `release-evidence.json` are copied byte-for-byte from that run. The release page links the full local release record and privacy statement, labels the build as an unsigned Windows Beta, and never presents it as stable or publisher-verified. Once published, an asset is immutable by policy; a changed executable requires a new version, a new clean run, and a new release.
 
 Field feedback is an optional human boundary rather than application telemetry. A repository issue form requests categorical environment context and invented, non-sensitive reproduction steps. It warns users not to attach documents, recovery state, cache contents, private writing, personal information, or credentials. Verseform performs no issue submission, version check, crash upload, background request, or update installation; opening the application cannot contact GitHub.
+
+## Browser-target feasibility (assessment only)
+
+The existing pure core, workspace kernel/controller, Tiptap gateway, React controls, document schema, DBS normalization, and attributed output renderer are reusable in a browser target. The current `browserAdapters.ts` is a deterministic test harness: DBS text is fabricated, documents use localStorage and synthetic paths, and Print/PDF/external links emit test events. Deploying the current `dist` would expose those simulations as application behavior.
+
+A production browser target would need a separate composition from the harness and real implementations of the runtime ports. Keep one product core with Windows and browser adapters in this repository; do not fork the editor or migrate to a monorepo merely to add a target. The path-based document port and native close/output completion assumptions also need explicit capability semantics, rather than claiming a browser download or closed print dialog proves a file was saved.
+
+| Boundary | Browser work and parity constraint |
+|---|---|
+| Documents and recovery | Use transactional browser storage for local drafts/recovery/preferences, plus portable `.verseform` import/export. User-granted file handles can improve desktop Chromium integration, but permission renewal, recent handles, quota failure, user-cleared storage, multiple tabs, and interrupted writes require their own evidence. Browser-managed recovery is not equivalent to an independently saved file. |
+| Scripture | Supply a real browser transport with the existing limits/normalization/fallback policy. Verify DBS CORS from the intended HTTPS origin and whether the existing authorization/cache permission covers that distribution. No CORS deployment proof was performed in this review. If a proxy is necessary, its operations and privacy become an explicit new boundary; it must never receive document prose. |
+| Offline loading and updates | Cache the application and bundled WEB through a service worker after an initial successful visit; handle failed installation, schema upgrades, and old/new tabs without losing drafts. The current build emits about 4.88 MB of JavaScript (1.45 MB gzip), so measure first-load cost and separate large static assets where useful. |
+| Print and PDF | Browser print UI can consume the shared renderer. The Windows WebView2 `PrintToPdf` API is unavailable to ordinary website JavaScript. Exact downloadable-PDF parity needs a separately chosen and tested client renderer; browser Print → Save as PDF is a simpler product alternative with different completion and settings guarantees. Keep output local unless the requirements explicitly change. |
+| Shell and verification | Adapt tab title, close/unload, shortcut conflicts, focus, links, and file-picker user activation. Run common behavioral/format/provider tests against both real compositions and retain a smaller platform matrix for persistence, output, offline updates, and permissions. Mobile and Safari/Firefox support add input, layout, and API work beyond a desktop Chromium target. |
+
+Browser file pickers require HTTPS and transient user activation and have limited browser availability ([MDN file picker](https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker)). Browser data is subject to quotas and eviction/persistence policies ([MDN storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)); offline shell behavior needs explicit caching and lifecycle handling ([MDN offline operation](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation)). Standard [`window.print()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/print) opens print UI; it is not the native PDF-writing contract. Sources checked 2026-09-05.
+
+This assessment adds no web release commitment or account/sync/server capability. Select browser support and acceptable file/PDF semantics in the requirements before scheduling implementation. Shared writing/scripture changes should normally be made once, while adapters, browser/Windows acceptance, and two delivery processes require ongoing target-specific work.
 
 ## Refactor method
 

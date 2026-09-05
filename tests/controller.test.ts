@@ -56,7 +56,13 @@ const latestContent: EditorNode = {
   content: [{ type: "paragraph", content: [{ type: "text", text: "latest" }] }],
 };
 
-function harness() {
+type HarnessOptions = {
+  writeRecovery?: (snapshot: RecoverySnapshot) => Promise<void>;
+  listRecoveries?: () => Promise<RecoverySnapshot[]>;
+  discardRecovery?: (documentId: string) => Promise<void>;
+};
+
+function harness(options: HarnessOptions = {}) {
   const scheduler = new FakeScheduler();
   let shortcut: ((stroke: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean }) => boolean) | undefined;
   const diagnostics: unknown[] = [];
@@ -66,7 +72,8 @@ function harness() {
     promptForLink: () => null,
     publishDiagnostics: (snapshot) => diagnostics.push(snapshot),
   };
-  const writeRecovery = vi.fn(async (_snapshot: RecoverySnapshot) => undefined);
+  const writeRecovery = vi.fn(options.writeRecovery ?? (async (_snapshot: RecoverySnapshot) => undefined));
+  const discardRecovery = vi.fn(options.discardRecovery ?? (async (_documentId: string) => undefined));
   const runtime: RuntimeAdapters = {
     kind: "browser",
     scripture: {
@@ -84,8 +91,8 @@ function harness() {
       saveAs: async () => null,
       listRecent: async () => [],
       writeRecovery,
-      listRecoveries: async () => [],
-      discardRecovery: async () => undefined,
+      listRecoveries: options.listRecoveries ?? (async () => []),
+      discardRecovery,
     },
     output: {
       print: async () => undefined,
@@ -127,6 +134,7 @@ function harness() {
     scheduler,
     gateway,
     writeRecovery,
+    discardRecovery,
     diagnostics,
     dispatched,
     emit(value: EditorObservation) { observation?.(value); },
@@ -171,6 +179,59 @@ describe("workspace controller", () => {
     expect(JSON.stringify(latest)).not.toContain("first");
     expect(JSON.stringify(latest)).not.toContain("latest");
     await Promise.resolve();
+    testHarness.controller.destroy();
+  });
+
+  test("recovery cleanup waits for an older write for the same document", async () => {
+    let releaseWrite!: () => void;
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const order: string[] = [];
+    const recovered: RecoverySnapshot = {
+      document: {
+        format: "verseform",
+        schemaVersion: 2,
+        title: "Recovered draft",
+        documentId: "recovered-document",
+        createdAt: "2026-09-03T11:00:00.000Z",
+        updatedAt: "2026-09-03T11:30:00.000Z",
+        content: firstContent,
+      },
+      contentHash: contentHash(firstContent),
+      savedContentHash: contentHash({ type: "doc", content: [{ type: "paragraph" }] }),
+      capturedAtMs: new Date("2026-09-03T11:30:00.000Z").getTime(),
+    };
+    const testHarness = harness({
+      listRecoveries: async () => [recovered],
+      writeRecovery: async () => {
+        order.push("write:start");
+        await writeGate;
+        order.push("write:end");
+      },
+      discardRecovery: async () => { order.push("discard"); },
+    });
+    testHarness.controller.start();
+    testHarness.controller.attachEditor(testHarness.gateway);
+    await vi.waitFor(() => expect(testHarness.controller.getState().library.recoveries).toEqual([recovered]));
+    testHarness.freeze(latestContent);
+    testHarness.emit({
+      contentHash: contentHash(latestContent),
+      formatting: DEFAULT_FORMATTING,
+      documentChanged: true,
+    });
+    testHarness.scheduler.advanceBy(250);
+    await vi.waitFor(() => expect(testHarness.writeRecovery).toHaveBeenCalledTimes(1));
+    const currentDocumentId = testHarness.writeRecovery.mock.calls[0][0].document.documentId;
+
+    testHarness.controller.restoreRecovery();
+    expect(testHarness.controller.getState().overlay.type).toBe("confirm");
+    testHarness.controller.resolveConfirmation("discard");
+    expect(testHarness.controller.getState().document.identity?.documentId).toBe("recovered-document");
+    expect(testHarness.discardRecovery).not.toHaveBeenCalled();
+    expect(order).toEqual(["write:start"]);
+
+    releaseWrite();
+    await vi.waitFor(() => expect(testHarness.discardRecovery).toHaveBeenCalledWith(currentDocumentId));
+    expect(order).toEqual(["write:start", "write:end", "discard"]);
     testHarness.controller.destroy();
   });
 });

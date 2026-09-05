@@ -53,7 +53,8 @@ export class WorkspaceController {
   private view: WorkspaceViewModel;
   private readonly listeners = new Set<() => void>();
   private readonly timers = new Map<"recovery" | "autosave", unknown>();
-  private readonly aborts = new Map<"catalog" | "preview", AbortController>();
+  private readonly aborts = new Map<"catalog" | "preview" | "insertion", AbortController>();
+  private readonly recoveryTasks = new Map<string, Promise<void>>();
   private readonly disposers: Array<() => void> = [];
   private editor?: EditorGateway;
   private detachEditor?: () => void;
@@ -152,7 +153,7 @@ export class WorkspaceController {
     if (!recovery) return;
     const displayName = this.state.library.recent.find((item) => item.path === recovery.sourcePath)?.displayName
       ?? "Recovered.verseform";
-    this.send({ type: "recovery.restore", recovery, displayName });
+    this.send({ type: "document.request", action: { type: "recovery", recovery, displayName } });
   }
 
   discardRecovery(index = 0): void {
@@ -257,6 +258,17 @@ export class WorkspaceController {
     }
   }
 
+  private enqueueRecoveryTask(documentId: string, task: () => Promise<void>): Promise<void> {
+    const prior = this.recoveryTasks.get(documentId) ?? Promise.resolve();
+    const current = prior.catch(() => undefined).then(task);
+    this.recoveryTasks.set(documentId, current);
+    const clear = () => {
+      if (this.recoveryTasks.get(documentId) === current) this.recoveryTasks.delete(documentId);
+    };
+    void current.then(clear, clear);
+    return current;
+  }
+
   private run(effect: WorkspaceEffect): void {
     const runtime = this.dependencies.runtime;
     switch (effect.type) {
@@ -323,7 +335,10 @@ export class WorkspaceController {
         return;
       }
       case "document.writeRecovery":
-        void runtime.documents.writeRecovery({ ...effect.snapshot, capturedAtMs: (this.dependencies.now?.() ?? new Date()).getTime() })
+        void this.enqueueRecoveryTask(effect.snapshot.document.documentId, () => runtime.documents.writeRecovery({
+          ...effect.snapshot,
+          capturedAtMs: (this.dependencies.now?.() ?? new Date()).getTime(),
+        }))
           .then(() => this.send({ type: "persistence.recoveryWritten", operationId: effect.stamp.id }))
           .catch((error: unknown) => this.send({ type: "persistence.recoveryFailed", operationId: effect.stamp.id, error: errorMessage(error) }));
         return;
@@ -352,7 +367,8 @@ export class WorkspaceController {
           .catch((error: unknown) => this.send({ type: "document.openFailed", operationId: effect.stamp.id, error: errorMessage(error) }));
         return;
       case "document.discardRecovery":
-        void runtime.documents.discardRecovery(effect.documentId).catch(() => undefined);
+        void this.enqueueRecoveryTask(effect.documentId, () => runtime.documents.discardRecovery(effect.documentId))
+          .catch(() => undefined);
         return;
       case "window.close": void runtime.window.close().catch(() => undefined); return;
       case "preference.saveTranslation":
@@ -369,17 +385,31 @@ export class WorkspaceController {
           .catch((error: unknown) => this.send({ type: "scripture.previewFailed", operationId: effect.stamp.id, error: errorMessage(error), aborted: abort.signal.aborted }));
         return;
       }
-      case "scripture.lookupInsertion":
-        void runtime.scripture.getPassage(effect.candidate.reference, effect.stamp.translationId!)
+      case "scripture.lookupInsertion": {
+        this.aborts.get("insertion")?.abort();
+        const abort = new AbortController();
+        this.aborts.set("insertion", abort);
+        void runtime.scripture.getPassage(
+          effect.candidate.reference,
+          effect.stamp.translationId!,
+          abort.signal,
+        )
           .then((passage) => this.send({ type: "scripture.insertionResult", operationId: effect.stamp.id, passage }))
           .catch((error: unknown) => this.send({ type: "scripture.insertionFailed", operationId: effect.stamp.id, error: errorMessage(error) }));
         return;
+      }
       case "scripture.verifyInsertion": {
         const sourceText = this.editor?.readRange(effect.request.from, effect.request.to) ?? "";
         const fresh = isLookupFresh(effect.request, this.state.document.revision, sourceText);
         this.send({ type: "scripture.insertionVerified", operationId: effect.stamp.id, fresh });
         return;
       }
+      case "scripture.cancelLookups":
+        this.aborts.get("preview")?.abort();
+        this.aborts.get("insertion")?.abort();
+        this.aborts.delete("preview");
+        this.aborts.delete("insertion");
+        return;
       case "output.afterPaint": {
         this.dependencies.scheduler.afterPaint(() => this.dependencies.scheduler.afterPaint(() => {
           this.send({ type: "output.paintReady", operationId: effect.stamp.id, mode: effect.mode });
