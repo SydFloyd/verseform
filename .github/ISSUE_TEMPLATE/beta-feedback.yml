@@ -1,6 +1,6 @@
 name: Verseform Beta feedback
 description: Report a defect, compatibility problem, accessibility issue, or daily-use friction in the Windows Beta.
-title: "[Beta 0.2.0] "
+title: "[Beta 0.2.1] "
 body:
   - type: markdown
     attributes:
@@ -55,7 +55,7 @@ body:
       label: Safe reproduction steps
       description: Use invented text and the smallest sequence that reproduces the behavior.
       placeholder: |
-        1. Open Verseform 0.2.0.
+        1. Open Verseform 0.2.1.
         2. Enter non-sensitive sample text.
         3. Choose...
         4. Observe...

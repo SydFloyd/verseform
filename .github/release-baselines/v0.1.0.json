@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "sourceCommit": "0c41ff0ad845533679611ccb4c5bf969ceaf5e0a",
+  "workflowRun": 33759181934,
+  "workflowArtifact": {
+    "id": 9895501098,
+    "name": "verseform-0.1.0-windows-alpha",
+    "archiveSha256": "b2d549e9596e8df6fe2ec1c22ac46dbd5a24ba44698cd1e87d4a096e3eb49ef8"
+  },
+  "installer": {
+    "name": "Verseform_0.1.0_x64-setup.exe",
+    "size": 4215891,
+    "sha256": "331f9f284305aba1e4a41db6bdbf3257b81ea10bb3ac2e28579baf2d503ed155",
+    "url": "https://github.com/SydFloyd/verseform/releases/download/v0.1.0/Verseform_0.1.0_x64-setup.exe",
+    "signed": false
+  }
+}

@@ -46,6 +46,40 @@ const desktopPackage = metadata.packages.find((entry) => entry.name === "versefo
 if (desktopPackage?.version !== packageManifest.version) {
   fail("package.json and the Verseform Cargo package must identify the same installed version");
 }
+
+const baseline = JSON.parse(readFileSync(
+  resolve(root, ".github/release-baselines/v0.1.0.json"),
+  "utf8",
+));
+const baselineUrl = new URL(baseline.installer?.url ?? "https://invalid.invalid");
+if (
+  baseline.version !== "0.1.0"
+  || !/^[0-9a-f]{40}$/.test(baseline.sourceCommit ?? "")
+  || !/^[0-9a-f]{64}$/.test(baseline.workflowArtifact?.archiveSha256 ?? "")
+  || !/^[0-9a-f]{64}$/.test(baseline.installer?.sha256 ?? "")
+  || !Number.isSafeInteger(baseline.installer?.size)
+  || baseline.installer.size <= 0
+  || baseline.installer.signed !== false
+  || baselineUrl.protocol !== "https:"
+  || baselineUrl.hostname !== "github.com"
+  || !baselineUrl.pathname.endsWith(`/releases/download/v0.1.0/${baseline.installer.name}`)
+) fail("The durable Alpha upgrade baseline manifest is incomplete or unsafe.");
+
+const releaseWorkflow = readFileSync(resolve(root, ".github/workflows/windows-beta.yml"), "utf8");
+const patchJob = (releaseWorkflow.split(/^  verify-windows-patch:/m)[1] ?? "")
+  .split(/^  publish-windows-patch:/m)[0];
+if (/actions\/download-artifact|\brun-id:/i.test(patchJob)) {
+  fail("The patch workflow must not depend on an expiring Actions artifact.");
+}
+if (
+  (releaseWorkflow.match(/actions\/download-artifact/g) ?? []).length !== 2
+  || (releaseWorkflow.match(/\brun-id:/g) ?? []).length !== 1
+  || !releaseWorkflow.includes(`run-id: ${baseline.workflowRun}`)
+  || !releaseWorkflow.includes("gh release create v0.1.0")
+  || !releaseWorkflow.includes("npm run fetch:upgrade-baseline")
+  || !releaseWorkflow.includes(`RELEASE_VERSION: ${packageManifest.version}`)
+) fail("The release workflow must archive the Alpha once, then verify the durable baseline and current package version.");
+
 for (const entry of metadata.packages) {
   if (!entry.source) continue;
   const license = entry.license ?? (entry.license_file ? `SEE ${entry.license_file}` : undefined);

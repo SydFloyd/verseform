@@ -653,7 +653,7 @@ describe("workspace kernel", () => {
     };
     const view = selectViewModel(selected);
     expect(view.credits).toEqual(expect.objectContaining({
-      version: "0.2.0",
+      version: "0.2.1",
       softwarePackageCount: expect.any(Number),
       translation: expect.objectContaining({ name: nasb.name, notice: nasb.attribution }),
     }));

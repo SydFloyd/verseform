@@ -1,16 +1,89 @@
-name: Windows beta
+name: Windows patch candidate
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
 
 permissions:
   actions: read
   contents: read
 
+env:
+  RELEASE_VERSION: 0.2.1
+
 jobs:
-  verify-windows-beta:
+  archive-alpha-baseline:
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check for the durable Alpha release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.1.0 --repo $env:GITHUB_REPOSITORY --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            "exists=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "exists=false" >> $env:GITHUB_OUTPUT
+          }
+      - name: Download expiring Alpha artifact for one-time preservation
+        if: steps.release.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          name: verseform-0.1.0-windows-alpha
+          path: artifacts/alpha
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 33759181934
+      - name: Verify and publish the immutable Alpha baseline
+        if: steps.release.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $manifestPath = Resolve-Path ".github/release-baselines/v0.1.0.json"
+          $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+          $installer = Resolve-Path (Join-Path "artifacts/alpha" $manifest.installer.name)
+          $file = Get-Item -LiteralPath $installer
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          if ($file.Length -ne $manifest.installer.size) { throw "Alpha baseline size mismatch." }
+          if ($hash -ne $manifest.installer.sha256) { throw "Alpha baseline SHA-256 mismatch." }
+          $notes = @"
+          This pre-release archives the exact unsigned Verseform 0.1.0 installer used by the verified Alpha-to-Beta upgrade gate. It is retained only as an immutable upgrade-test baseline, not as the recommended Verseform download.
+
+          Source commit: $($manifest.sourceCommit)
+          Workflow run: $($manifest.workflowRun)
+          Installer SHA-256: $($manifest.installer.sha256)
+          "@
+          gh release create v0.1.0 $installer $manifestPath --repo $env:GITHUB_REPOSITORY --target $manifest.sourceCommit --title "Verseform 0.1.0 upgrade baseline" --notes $notes --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw "GitHub did not publish the Alpha baseline release." }
+      - name: Verify the durable Alpha release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $manifest = Get-Content -Raw -LiteralPath ".github/release-baselines/v0.1.0.json" | ConvertFrom-Json
+          $release = gh release view v0.1.0 --repo $env:GITHUB_REPOSITORY --json targetCommitish,isPrerelease | ConvertFrom-Json
+          if ($release.targetCommitish -ne $manifest.sourceCommit) { throw "Alpha baseline tag targets the wrong commit." }
+          if (-not $release.isPrerelease) { throw "Alpha baseline must remain a pre-release archive." }
+          $verificationDirectory = New-Item -ItemType Directory -Force -Path "artifacts/baseline-verify"
+          gh release download v0.1.0 --repo $env:GITHUB_REPOSITORY --pattern $manifest.installer.name --dir $verificationDirectory.FullName
+          if ($LASTEXITCODE -ne 0) { throw "GitHub did not return the Alpha baseline installer." }
+          $download = Get-Item -LiteralPath (Join-Path $verificationDirectory.FullName $manifest.installer.name)
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $download).Hash.ToLowerInvariant()
+          if ($download.Length -ne $manifest.installer.size) { throw "Durable Alpha baseline size mismatch." }
+          if ($hash -ne $manifest.installer.sha256) { throw "Durable Alpha baseline SHA-256 mismatch." }
+
+  verify-windows-patch:
+    needs: archive-alpha-baseline
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
@@ -20,50 +93,15 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
-      - name: Download retained Windows Alpha
-        uses: actions/download-artifact@v8
-        with:
-          name: verseform-0.1.0-windows-alpha
-          path: artifacts/alpha
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: 33759181934
+      - name: Download and verify durable Windows Alpha baseline
+        shell: pwsh
+        run: npm run fetch:upgrade-baseline
       - name: Install locked dependencies
         run: npm ci
       - name: Audit npm advisories
         run: npm audit --audit-level=high
-      - name: Run TypeScript and pure application checks
-        run: npm run typecheck && npm run test
-      - name: Build production webview
-        run: npm run build
-      - name: Run Alpha hardening journeys
-        run: npx playwright test tests/browser/alpha-hardening.spec.ts
-      - name: Run Beta stabilization journeys
-        run: npx playwright test tests/browser/beta-stabilization.spec.ts
-      - name: Prove Beta UI geometry
-        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps compact control groups"
-      - name: Prove quiet command feedback
-        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps command buttons quiet"
-      - name: Prove sticky writing controls
-        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "keeps the command deck available"
-      - name: Prove translation picker
-        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "shows the translation abbreviation"
-      - name: Prove Credits and Licenses
-        run: npx playwright test tests/browser/beta-ui.spec.ts --grep "opens complete local credits"
-      - name: Run editing lifecycle journeys
-        run: npx playwright test tests/browser/editing-lifecycle.spec.ts
-      - name: Run kernel journeys
-        run: npx playwright test tests/browser/kernel.spec.ts
-      - name: Run output journeys
-        run: npx playwright test tests/browser/output.spec.ts
-      - name: Run reference intelligence journeys
-        run: npx playwright test tests/browser/reference-intelligence.spec.ts
-      - name: Run refinement journeys
-        run: npx playwright test tests/browser/refinement.spec.ts
-      - name: Run scripture provider journeys
-        run: npx playwright test tests/browser/scripture-providers.spec.ts
-      - name: Run walking-slice journeys
-        run: npx playwright test tests/browser/walking-slice.spec.ts
+      - name: Run canonical application, browser, native, and release checks
+        run: npm run check
       - name: Publish browser failure evidence
         if: failure()
         shell: pwsh
@@ -75,43 +113,125 @@ jobs:
             $escaped = $message.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
             Write-Output "::error title=Playwright failure::$escaped"
           }
-      - name: Run native and Windows checks
-        run: npm run check:native
-      - name: Validate release boundaries and licenses
-        run: npm run audit:release
-      - name: Build Beta NSIS installer
+      - name: Build unsigned NSIS patch installer
         run: npm run build:desktop
-      - name: Exercise Alpha-to-Beta upgrade lifecycle
+      - name: Exercise Alpha-to-patch upgrade lifecycle
         run: npm run test:upgrade
-      - name: Exercise clean installer lifecycle
+      - name: Exercise clean patch installer lifecycle
         run: npm run test:installer
       - name: Audit Rust advisories
         run: cargo install cargo-audit --locked && cargo audit --file src-tauri/Cargo.lock
-      - name: Record artifact evidence
+      - name: Record patch artifact evidence
         shell: pwsh
         run: |
-          $installer = Resolve-Path "src-tauri/target/release/bundle/nsis/Verseform_0.2.0_x64-setup.exe"
-          $evidenceDirectory = New-Item -ItemType Directory -Force -Path "artifacts/beta-release"
+          $manifestVersion = (Get-Content -Raw -LiteralPath "package.json" | ConvertFrom-Json).version
+          if ($manifestVersion -ne $env:RELEASE_VERSION) { throw "Workflow and package versions disagree." }
+          $installer = Resolve-Path "src-tauri/target/release/bundle/nsis/Verseform_$($env:RELEASE_VERSION)_x64-setup.exe"
+          $baseline = Get-Content -Raw -LiteralPath ".github/release-baselines/v0.1.0.json" | ConvertFrom-Json
+          $evidenceDirectory = New-Item -ItemType Directory -Force -Path "artifacts/patch-release"
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
           "$hash  $([IO.Path]::GetFileName($installer))" | Set-Content -Encoding ascii -LiteralPath (Join-Path $evidenceDirectory "SHA256SUMS.txt")
           @{
-            version = "0.2.0"
+            version = $env:RELEASE_VERSION
             commit = $env:GITHUB_SHA
             workflowRun = $env:GITHUB_RUN_ID
             runner = $env:RUNNER_NAME
             sha256 = $hash
-          } | ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath (Join-Path $evidenceDirectory "release-evidence.json")
-          "### Verseform 0.2.0 Windows Beta" >> $env:GITHUB_STEP_SUMMARY
+            unsigned = $true
+            upgradeBaseline = @{
+              version = $baseline.version
+              sourceCommit = $baseline.sourceCommit
+              sha256 = $baseline.installer.sha256
+              url = $baseline.installer.url
+            }
+          } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 -LiteralPath (Join-Path $evidenceDirectory "release-evidence.json")
+          "### Verseform $($env:RELEASE_VERSION) Windows Beta patch" >> $env:GITHUB_STEP_SUMMARY
           "- Commit: ``$env:GITHUB_SHA``" >> $env:GITHUB_STEP_SUMMARY
           "- Installer SHA-256: ``$hash``" >> $env:GITHUB_STEP_SUMMARY
-          Write-Output "::notice title=Beta installer SHA-256::$hash"
-          Write-Output "Beta installer SHA-256: $hash"
+          "- Upgrade baseline: ``$($baseline.version)`` / ``$($baseline.installer.sha256)``" >> $env:GITHUB_STEP_SUMMARY
+          "- Signing: unsigned" >> $env:GITHUB_STEP_SUMMARY
+          Write-Output "::notice title=Patch installer SHA-256::$hash"
       - uses: actions/upload-artifact@v7
         with:
-          name: verseform-0.2.0-windows-beta
+          name: verseform-${{ env.RELEASE_VERSION }}-windows-beta
           path: |
-            src-tauri/target/release/bundle/nsis/Verseform_0.2.0_x64-setup.exe
-            artifacts/beta-release/SHA256SUMS.txt
-            artifacts/beta-release/release-evidence.json
+            src-tauri/target/release/bundle/nsis/Verseform_${{ env.RELEASE_VERSION }}_x64-setup.exe
+            artifacts/patch-release/SHA256SUMS.txt
+            artifacts/patch-release/release-evidence.json
           if-no-files-found: error
           retention-days: 30
+
+  publish-windows-patch:
+    needs: verify-windows-patch
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the verified patch artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: verseform-${{ env.RELEASE_VERSION }}-windows-beta
+          path: artifacts/publish
+      - name: Publish or verify the immutable patch pre-release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$($env:RELEASE_VERSION)"
+          $installerName = "Verseform_$($env:RELEASE_VERSION)_x64-setup.exe"
+          $installerMatches = @(Get-ChildItem "artifacts/publish" -Recurse -File -Filter $installerName)
+          $checksumMatches = @(Get-ChildItem "artifacts/publish" -Recurse -File -Filter "SHA256SUMS.txt")
+          $evidenceMatches = @(Get-ChildItem "artifacts/publish" -Recurse -File -Filter "release-evidence.json")
+          if ($installerMatches.Count -ne 1 -or $checksumMatches.Count -ne 1 -or $evidenceMatches.Count -ne 1) {
+            throw "The verified release artifact is incomplete or ambiguous."
+          }
+          $installer = $installerMatches[0]
+          $checksum = $checksumMatches[0]
+          $evidenceFile = $evidenceMatches[0]
+          $evidence = Get-Content -Raw -LiteralPath $evidenceFile | ConvertFrom-Json
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          if ($evidence.version -ne $env:RELEASE_VERSION -or $evidence.commit -ne $env:GITHUB_SHA -or $evidence.sha256 -ne $hash -or $evidence.unsigned -ne $true) {
+            throw "The release evidence does not identify this exact unsigned candidate."
+          }
+          $expectedChecksum = "$hash  $installerName"
+          if ((Get-Content -Raw -LiteralPath $checksum).Trim() -ne $expectedChecksum) {
+            throw "The release checksum file does not identify this installer."
+          }
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $notes = @"
+          Verseform $($env:RELEASE_VERSION) is an unsigned Windows Beta patch for ordinary writing with fast, local scripture-reference detection and one-click insertion.
+
+          This patch protects a current dirty draft before recovery restore, adds an intentional F6 keyboard route through detected references and the command deck, and makes PDF review show the same Letter pages, repeated attribution, and optional page numbers exported by WebView2.
+
+          The installer is not code-signed. Windows SmartScreen may display an unrecognized-publisher warning. Verseform remains local-first: it has no account, telemetry, crash upload, updater, or background GitHub connection. Only an uncached scripture preview or insertion contacts DBS; document prose is never sent.
+
+          Installer SHA-256: $hash
+          Clean Windows run: https://github.com/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)
+          Upgrade baseline: Verseform $($evidence.upgradeBaseline.version), $($evidence.upgradeBaseline.sha256)
+
+          Release record: https://github.com/$($env:GITHUB_REPOSITORY)/blob/main/BETA-RELEASE.md
+          Privacy: https://github.com/$($env:GITHUB_REPOSITORY)/blob/main/PRIVACY.md
+          Feedback: https://github.com/$($env:GITHUB_REPOSITORY)/issues/new?template=beta-feedback.yml
+
+          Use invented text and do not attach private writing or Verseform document, recovery, or cache files.
+          "@
+            gh release create $tag $installer.FullName $checksum.FullName $evidenceFile.FullName --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Verseform $($env:RELEASE_VERSION) Windows Beta" --notes $notes --prerelease
+            if ($LASTEXITCODE -ne 0) { throw "GitHub did not publish the patch pre-release." }
+          }
+
+          $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json targetCommitish,isPrerelease | ConvertFrom-Json
+          if ($release.targetCommitish -ne $env:GITHUB_SHA -or -not $release.isPrerelease) {
+            throw "The published patch does not identify this exact pre-release commit."
+          }
+          $verificationDirectory = New-Item -ItemType Directory -Force -Path "artifacts/release-verify"
+          gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern $installerName --dir $verificationDirectory.FullName
+          if ($LASTEXITCODE -ne 0) { throw "GitHub did not return the published patch installer." }
+          $publishedInstaller = Get-Item -LiteralPath (Join-Path $verificationDirectory.FullName $installerName)
+          $publishedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $publishedInstaller).Hash.ToLowerInvariant()
+          if ($publishedInstaller.Length -ne $installer.Length -or $publishedHash -ne $hash) {
+            throw "The published patch installer differs from the verified artifact."
+          }

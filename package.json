@@ -1,7 +1,7 @@
 {
   "name": "verseform",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,8 @@
     "dev:desktop": "tauri dev",
     "build:desktop": "tauri build",
     "test:installer": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-installer.ps1",
-    "test:upgrade": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-upgrade.ps1"
+    "test:upgrade": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-upgrade.ps1",
+    "fetch:upgrade-baseline": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-upgrade-baseline.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
