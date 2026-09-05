@@ -1,6 +1,6 @@
 # Verseform 0.2.1 Windows Beta
 
-## Corrected patch candidate
+## Corrected patch release
 
 The clean Windows workflow publishes [Verseform 0.2.1](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) only after the exact commit passes the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release attaches `Verseform_0.2.1_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
 
@@ -72,7 +72,8 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The workflow archives the exact unsigned 0.1.0 installer as a non-latest [`v0.1.0` upgrade-baseline pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.1.0), then verifies its 4,197,262 bytes and SHA-256 `0caebf685ed7debfbb164b32a807871fb5d94026c471e1c03f23d2b025544001` before every patch gate. It came from Alpha run `33759181934` at commit `0c41ff0ad845533679611ccb4c5bf969ceaf5e0a`; future patch verification no longer depends on that expiring Actions artifact.
 - The 0.2.1 workflow runs the complete canonical gate, builds the unsigned NSIS installer, proves Alpha-to-patch profile/recovery/cache/document preservation, proves a separate clean offline install/uninstall lifecycle, audits advisories, and records version, commit, run, runner, installer SHA-256, unsigned status, and baseline provenance in `release-evidence.json`.
 - The canonical gate currently contains 43 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 39 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
-- Until this source record is updated with the final clean-runner identifiers, the published `v0.2.1` page and its attached `SHA256SUMS.txt` and `release-evidence.json` are authoritative for the exact candidate. Historical 0.2.0 evidence remains in that release and version control.
+- [Clean Windows run `33995590945`](https://github.com/SydFloyd/verseform/actions/runs/33995590945) passed at commit `1da671920bffa5c373640278281d7c213aa95336`: the durable-baseline archive check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its 30-day artifact `verseform-0.2.1-windows-beta` is ID `9978236778` with archive SHA-256 `66d76c9effd7230765051400f26a921a82e7d0d365f16878c04b83fa539b1856`.
+- The public [`v0.2.1` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) resolves to that exact commit. Its unsigned 4,309,127-byte installer has SHA-256 `888a771cc705b214115b50e32298ddb6c5c3dd01b7d25d04ebf75be6fbf8a80a`; a fresh public download returned the same size, digest, and `NotSigned` status. GitHub records `SHA256SUMS.txt` as `sha256:0e78bb4e92a76002ad43d82bd2b3faf96a7483e12c400081fbad2ea84fa633e8` and `release-evidence.json` as `sha256:d5712fa3a7efdd97de2590020044c1082bd8aaaa75fc994e8e8d4fc894dc22d9`. Historical 0.2.0 evidence remains in that release and version control.
 
 ## Reproduce the release gate
 
