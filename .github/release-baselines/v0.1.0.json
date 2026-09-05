@@ -9,8 +9,8 @@
   },
   "installer": {
     "name": "Verseform_0.1.0_x64-setup.exe",
-    "size": 4215891,
-    "sha256": "331f9f284305aba1e4a41db6bdbf3257b81ea10bb3ac2e28579baf2d503ed155",
+    "size": 4197262,
+    "sha256": "0caebf685ed7debfbb164b32a807871fb5d94026c471e1c03f23d2b025544001",
     "url": "https://github.com/SydFloyd/verseform/releases/download/v0.1.0/Verseform_0.1.0_x64-setup.exe",
     "signed": false
   }
