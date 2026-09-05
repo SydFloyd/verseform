@@ -72,7 +72,11 @@ jobs:
           Workflow run: $($manifest.workflowRun)
           Installer SHA-256: $($manifest.installer.sha256)
           "@
-          gh release create v0.1.0 $installer $manifestPath --repo $env:GITHUB_REPOSITORY --target $manifest.sourceCommit --title "Verseform 0.1.0 upgrade baseline" --notes $notes --prerelease --latest=false
+          $tagTarget = gh api "repos/$($env:GITHUB_REPOSITORY)/git/ref/tags/v0.1.0" --jq ".object.sha"
+          if ($LASTEXITCODE -ne 0 -or $tagTarget -ne $manifest.sourceCommit) {
+            throw "The pre-created Alpha baseline tag does not target the pinned source commit."
+          }
+          gh release create v0.1.0 $installer $manifestPath --repo $env:GITHUB_REPOSITORY --verify-tag --title "Verseform 0.1.0 upgrade baseline" --notes $notes --prerelease --latest=false
           if ($LASTEXITCODE -ne 0) { throw "GitHub did not publish the Alpha baseline release." }
       - name: Verify the durable Alpha release
         shell: pwsh
@@ -80,8 +84,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $manifest = Get-Content -Raw -LiteralPath ".github/release-baselines/v0.1.0.json" | ConvertFrom-Json
-          $release = gh release view v0.1.0 --repo $env:GITHUB_REPOSITORY --json targetCommitish,isPrerelease | ConvertFrom-Json
-          if ($release.targetCommitish -ne $manifest.sourceCommit) { throw "Alpha baseline tag targets the wrong commit." }
+          $tagTarget = gh api "repos/$($env:GITHUB_REPOSITORY)/git/ref/tags/v0.1.0" --jq ".object.sha"
+          if ($LASTEXITCODE -ne 0 -or $tagTarget -ne $manifest.sourceCommit) { throw "Alpha baseline tag targets the wrong commit." }
+          $release = gh release view v0.1.0 --repo $env:GITHUB_REPOSITORY --json isPrerelease | ConvertFrom-Json
           if (-not $release.isPrerelease) { throw "Alpha baseline must remain a pre-release archive." }
           $verificationDirectory = New-Item -ItemType Directory -Force -Path "artifacts/baseline-verify"
           gh release download v0.1.0 --repo $env:GITHUB_REPOSITORY --pattern $manifest.installer.name --dir $verificationDirectory.FullName

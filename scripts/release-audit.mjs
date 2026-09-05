@@ -76,6 +76,8 @@ if (
   || (releaseWorkflow.match(/\brun-id:/g) ?? []).length !== 1
   || !releaseWorkflow.includes(`run-id: ${baseline.workflowRun}`)
   || !releaseWorkflow.includes("gh release create v0.1.0")
+  || !releaseWorkflow.includes("git/ref/tags/v0.1.0")
+  || !releaseWorkflow.includes("--verify-tag")
   || !releaseWorkflow.includes("npm run fetch:upgrade-baseline")
   || !releaseWorkflow.includes(`RELEASE_VERSION: ${packageManifest.version}`)
 ) fail("The release workflow must archive the Alpha once, then verify the durable baseline and current package version.");
