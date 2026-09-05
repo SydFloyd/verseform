@@ -57,8 +57,14 @@ jobs:
           $installer = Resolve-Path (Join-Path "artifacts/alpha" $manifest.installer.name)
           $file = Get-Item -LiteralPath $installer
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
-          if ($file.Length -ne $manifest.installer.size) { throw "Alpha baseline size mismatch." }
-          if ($hash -ne $manifest.installer.sha256) { throw "Alpha baseline SHA-256 mismatch." }
+          $actualSize = [long]$file.Length
+          $expectedSize = [long]$manifest.installer.size
+          if ($actualSize -ne $expectedSize) {
+            throw "Alpha baseline size mismatch: expected $expectedSize bytes, received $actualSize bytes."
+          }
+          if ($hash -ne $manifest.installer.sha256) {
+            throw "Alpha baseline SHA-256 mismatch: expected $($manifest.installer.sha256), received $hash."
+          }
           $notes = @"
           This pre-release archives the exact unsigned Verseform 0.1.0 installer used by the verified Alpha-to-Beta upgrade gate. It is retained only as an immutable upgrade-test baseline, not as the recommended Verseform download.
 
