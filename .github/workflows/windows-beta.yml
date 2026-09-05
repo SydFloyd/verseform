@@ -28,11 +28,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v0.1.0 --repo $env:GITHUB_REPOSITORY --json tagName 2>$null
-          if ($LASTEXITCODE -eq 0) {
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+          $release = Invoke-WebRequest -Uri "https://api.github.com/repos/$($env:GITHUB_REPOSITORY)/releases/tags/v0.1.0" -Headers $headers -SkipHttpErrorCheck
+          if ($release.StatusCode -eq 200) {
             "exists=true" >> $env:GITHUB_OUTPUT
-          } else {
+          } elseif ($release.StatusCode -eq 404) {
             "exists=false" >> $env:GITHUB_OUTPUT
+          } else {
+            throw "GitHub release lookup failed with status $($release.StatusCode)."
           }
       - name: Download expiring Alpha artifact for one-time preservation
         if: steps.release.outputs.exists == 'false'
@@ -200,8 +203,9 @@ jobs:
             throw "The release checksum file does not identify this installer."
           }
 
-          gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName 2>$null
-          if ($LASTEXITCODE -ne 0) {
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+          $releaseLookup = Invoke-WebRequest -Uri "https://api.github.com/repos/$($env:GITHUB_REPOSITORY)/releases/tags/$tag" -Headers $headers -SkipHttpErrorCheck
+          if ($releaseLookup.StatusCode -eq 404) {
             $notes = @"
           Verseform $($env:RELEASE_VERSION) is an unsigned Windows Beta patch for ordinary writing with fast, local scripture-reference detection and one-click insertion.
 
@@ -221,6 +225,8 @@ jobs:
           "@
             gh release create $tag $installer.FullName $checksum.FullName $evidenceFile.FullName --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Verseform $($env:RELEASE_VERSION) Windows Beta" --notes $notes --prerelease
             if ($LASTEXITCODE -ne 0) { throw "GitHub did not publish the patch pre-release." }
+          } elseif ($releaseLookup.StatusCode -ne 200) {
+            throw "GitHub release lookup failed with status $($releaseLookup.StatusCode)."
           }
 
           $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json targetCommitish,isPrerelease | ConvertFrom-Json
