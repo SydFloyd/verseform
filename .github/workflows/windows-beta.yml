@@ -60,7 +60,7 @@ jobs:
           $actualSize = [long]$file.Length
           $expectedSize = [long]$manifest.installer.size
           if ($actualSize -ne $expectedSize) {
-            throw "Alpha baseline size mismatch: expected $expectedSize bytes, received $actualSize bytes."
+            throw "Alpha baseline mismatch: expected $expectedSize bytes / $($manifest.installer.sha256), received $actualSize bytes / $hash."
           }
           if ($hash -ne $manifest.installer.sha256) {
             throw "Alpha baseline SHA-256 mismatch: expected $($manifest.installer.sha256), received $hash."
