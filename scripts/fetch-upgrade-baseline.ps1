@@ -28,6 +28,17 @@ if ($expectedHash -notmatch "^[0-9a-f]{64}$" -or $expectedSize -le 0) {
   throw "The upgrade baseline manifest has invalid integrity metadata."
 }
 
+function Get-Sha256([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 $directory = New-Item -ItemType Directory -Force -Path $OutputDirectory
 $destination = Join-Path $directory.FullName ([string]$manifest.installer.name)
 $temporary = "$destination.download-$PID"
@@ -35,7 +46,7 @@ $temporary = "$destination.download-$PID"
 try {
   Invoke-WebRequest -Uri $uri.AbsoluteUri -OutFile $temporary
   $download = Get-Item -LiteralPath $temporary
-  $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporary).Hash.ToLowerInvariant()
+  $actualHash = Get-Sha256 $temporary
   if ($download.Length -ne $expectedSize) {
     throw "Alpha baseline size mismatch: expected $expectedSize bytes, received $($download.Length)."
   }
