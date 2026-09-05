@@ -119,6 +119,8 @@ export type WorkspaceState = {
     mode?: "print" | "pdf";
     stamp?: OperationStamp;
     snapshot?: PrintSnapshot;
+    layoutVersion: number;
+    layoutReady?: boolean;
   };
   overlay: WorkspaceOverlay;
   formatting: EditorFormatting;
@@ -200,6 +202,8 @@ export type WorkspaceEvent =
   | { type: "output.request"; mode: "print" | "pdf" }
   | { type: "output.confirmPdf" }
   | { type: "output.cancelPdf" }
+  | { type: "output.layoutReady"; operationId: number; mode: "print" | "pdf"; layoutVersion: number }
+  | { type: "output.layoutFailed"; operationId: number; mode: "print" | "pdf"; layoutVersion: number; error: string }
   | { type: "output.paintReady"; operationId: number; mode: "print" | "pdf" }
   | { type: "output.printed"; operationId: number }
   | { type: "output.pdfResult"; operationId: number; saved: SavedPdf | null }
@@ -322,7 +326,7 @@ function beginAction(state: WorkspaceState, action: PendingDocumentAction): Tran
         previewOperation: undefined,
         insertion: undefined,
       },
-      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
       overlay: { type: "none" },
     }, "Recovery restored. Save to keep it.");
     return { state: next, effects: [
@@ -344,7 +348,7 @@ function beginAction(state: WorkspaceState, action: PendingDocumentAction): Tran
       },
       persistence: {},
       overlay: { type: "none" },
-      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+      output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
     }, "New document.");
     return { state: next, effects: [
       { type: "timer.cancel", timer: "recovery" },
@@ -432,7 +436,7 @@ export function createInitialWorkspace(
       selectedId: fallback.id,
       catalogPhase: "loading",
     },
-    output: { pageNumbers: false, phase: "idle" },
+    output: { pageNumbers: false, phase: "idle", layoutVersion: 0 },
     overlay: { type: "none" },
     formatting: DEFAULT_FORMATTING,
     notice: { id: 0, message: kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready" },
@@ -568,7 +572,13 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         return {
           state: {
             ...state,
-            output: { ...state.output, phase: "previewingPdf", snapshot },
+            output: {
+              ...state.output,
+              phase: "previewingPdf",
+              snapshot,
+              layoutVersion: state.output.layoutVersion + 1,
+              layoutReady: false,
+            },
             overlay: { type: "pdfExport" },
           },
           effects: [],
@@ -577,14 +587,20 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       return {
         state: {
           ...state,
-          output: { ...state.output, phase: "preparing", snapshot },
+          output: {
+            ...state.output,
+            phase: "preparing",
+            snapshot,
+            layoutVersion: state.output.layoutVersion + 1,
+            layoutReady: false,
+          },
         },
-        effects: [{ type: "output.afterPaint", mode, stamp: event.stamp }],
+        effects: [],
       };
     }
     case "editor.captureFailed": {
       if (event.purpose.type === "output" && state.output.stamp?.id === event.stamp.id && state.output.mode === event.purpose.mode) {
-        return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, `${event.purpose.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
+        return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false } }, `${event.purpose.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
       }
       if (event.purpose.type === "save" && state.persistence.save?.stamp.id === event.stamp.id) {
         return { state: notice({ ...state, persistence: { ...state.persistence, save: undefined } }, `Save failed: ${event.error}`), effects: [] };
@@ -753,7 +769,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         },
         persistence: {},
         library: { ...state.library, recentOperationId: operation.stamp.id },
-        output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+        output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
       }, `Opened ${event.opened.displayName}.`);
       return { state: next, effects: [
         { type: "timer.cancel", timer: "recovery" },
@@ -941,18 +957,20 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
           ...state.output,
           pageNumbers,
           snapshot: updatePrintSnapshotOptions(state.output.snapshot, { pageNumbers }),
+          layoutVersion: state.output.layoutVersion + 1,
+          layoutReady: false,
         } }, effects: [] };
       }
       return { state, effects: [] };
     case "output.request": {
       if (state.output.phase !== "idle") return { state, effects: [] };
       const stamp = operationStamp(state);
-      return { state: advance({ ...state, output: { ...state.output, phase: "capturing", mode: event.mode, stamp } }), effects: [
+      return { state: advance({ ...state, output: { ...state.output, phase: "capturing", mode: event.mode, stamp, snapshot: undefined, layoutReady: false } }), effects: [
         { type: "editor.capture", stamp, purpose: { type: "output", mode: event.mode } },
       ] };
     }
     case "output.confirmPdf": {
-      if (state.output.phase !== "previewingPdf" || state.output.mode !== "pdf" || state.overlay.type !== "pdfExport" || !state.output.stamp || !state.output.snapshot) {
+      if (state.output.phase !== "previewingPdf" || state.output.mode !== "pdf" || state.overlay.type !== "pdfExport" || !state.output.stamp || !state.output.snapshot || !state.output.layoutReady) {
         return { state, effects: [] };
       }
       return {
@@ -964,10 +982,36 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       return state.output.phase === "previewingPdf" && state.output.mode === "pdf" && state.overlay.type === "pdfExport"
         ? { state: notice({
           ...state,
-          output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined },
+          output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
           overlay: { type: "none" },
         }, "PDF export canceled. The document was not changed."), effects: [] }
         : { state, effects: [] };
+    case "output.layoutReady": {
+      if (
+        state.output.stamp?.id !== event.operationId
+        || state.output.mode !== event.mode
+        || state.output.layoutVersion !== event.layoutVersion
+        || !state.output.snapshot
+        || (state.output.phase !== "preparing" && state.output.phase !== "previewingPdf")
+      ) return { state, effects: [] };
+      const next = { ...state, output: { ...state.output, layoutReady: true } };
+      return event.mode === "print"
+        ? { state: next, effects: [{ type: "output.afterPaint", mode: "print", stamp: state.output.stamp }] }
+        : { state: next, effects: [] };
+    }
+    case "output.layoutFailed": {
+      if (
+        state.output.stamp?.id !== event.operationId
+        || state.output.mode !== event.mode
+        || state.output.layoutVersion !== event.layoutVersion
+        || (state.output.phase !== "preparing" && state.output.phase !== "previewingPdf")
+      ) return { state, effects: [] };
+      return { state: notice({
+        ...state,
+        output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
+        overlay: state.overlay.type === "pdfExport" ? { type: "none" } : state.overlay,
+      }, `${event.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
+    }
     case "output.paintReady": {
       if (state.output.stamp?.id !== event.operationId || state.output.phase !== "preparing" || state.output.mode !== event.mode || !state.output.snapshot) return { state, effects: [] };
       const next = { ...state, output: { ...state.output, phase: event.mode === "print" ? "printing" as const : "savingPdf" as const } };
@@ -979,17 +1023,17 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
     }
     case "output.printed": {
       if (state.output.stamp?.id !== event.operationId || state.output.phase !== "printing") return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, "Browser print preview opened with an immutable attributed snapshot."), effects: [] };
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, layoutReady: false } }, "Browser print preview opened with an immutable attributed snapshot."), effects: [] };
     }
     case "output.pdfResult": {
       if (state.output.stamp?.id !== event.operationId || state.output.phase !== "savingPdf") return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined } }, event.saved
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, layoutReady: false } }, event.saved
         ? `Exported ${event.saved.displayName} without changing the document.`
         : "PDF export canceled. The document was not changed."), effects: [] };
     }
     case "output.failed": {
       if (state.output.stamp?.id !== event.operationId || state.output.mode !== event.mode) return { state, effects: [] };
-      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined } }, `${event.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
+      return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false } }, `${event.mode === "print" ? "Print" : "PDF export"} failed: ${event.error}`), effects: [] };
     }
     case "overlay.openFind":
       return { state: { ...state, overlay: { type: "find", query: "", replacement: "", index: 0, count: 0 } }, effects: [

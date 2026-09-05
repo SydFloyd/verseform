@@ -23,6 +23,14 @@ async function pdfPageText(pdf: Buffer): Promise<string[]> {
   return pages;
 }
 
+function normalizedText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function reflectionMarkers(value: string): string[] {
+  return [...value.matchAll(/Reflection \d+\./g)].map(([match]) => match);
+}
+
 test("reviews a frozen PDF accessibly and preserves the document through both cancellation paths", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     window.addEventListener("verseform:pdf-export", (event) => {
@@ -37,24 +45,25 @@ test("reviews a frozen PDF accessibly and preserves the document through both ca
   const dialog = page.getByRole("dialog", { name: "Export PDF" });
   const exportButton = dialog.getByRole("button", { name: /^Export PDF/ });
   const pageNumbers = dialog.getByRole("checkbox", { name: "Page numbers" });
-  const preview = page.frameLocator('iframe[title="PDF export preview"]');
+  const preview = page.getByTestId("pdf-export-preview");
   await expect(dialog).toBeVisible();
   await expect(exportButton).toBeFocused();
-  await expect(preview.locator("body")).toContainText("Writing that must survive a canceled export.");
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview).toContainText("Writing that must survive a canceled export.");
   await pageNumbers.check();
-  await expect(preview.locator("body")).toContainText("Page 1");
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview).toContainText("Page 1");
   await exportButton.press("Tab");
   await expect(pageNumbers).toBeFocused();
   await pageNumbers.press("Shift+Tab");
   await expect(exportButton).toBeFocused();
   const accessibility = await new AxeBuilder({ page })
     .include(".pdf-export-dialog")
-    .exclude(".pdf-preview-frame")
     .setLegacyMode()
     .withTags(["wcag2a", "wcag2aa"])
     .analyze();
   expect(accessibility.violations).toEqual([]);
-  const screenshot = await page.screenshot({ path: "artifacts/vfm-110-pdf-export-dialog.png", fullPage: false });
+  const screenshot = await page.screenshot({ path: "artifacts/vfm-150-pdf-export-dialog.png", fullPage: false });
   await testInfo.attach("PDF export dialog", { body: screenshot, contentType: "image/png" });
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("status")).toContainText("PDF export canceled");
@@ -68,6 +77,47 @@ test("reviews a frozen PDF accessibly and preserves the document through both ca
   await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
   await expect.poll(() => page.evaluate(() => window.__lastPdfSnapshot?.pageNumbers)).toBe(true);
   await expect(page.getByRole("status")).toContainText("PDF export canceled");
+});
+
+test("one-page preview and exported PDF agree after page-number changes", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const sentence = "One page keeps this exact visible sentence and its attribution together.";
+  await page.getByRole("textbox", { name: "Document editor" }).fill(sentence);
+  await chooseMenuItem(page, "File", /^Save PDF$/);
+
+  const preview = page.getByTestId("pdf-export-preview");
+  const pageNumbers = page.getByRole("checkbox", { name: "Page numbers" });
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview.locator(".pagedjs_page")).toHaveCount(1);
+  const withoutNumbers = normalizedText(await preview.locator(".pagedjs_page").innerText());
+  expect(withoutNumbers).toContain(sentence);
+  expect(withoutNumbers).toContain("Powered by DBS");
+  expect(withoutNumbers).not.toContain("Page 1");
+
+  await pageNumbers.check();
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview).toHaveAttribute("data-footer-fits", "true");
+  const withNumbers = normalizedText(await preview.locator(".pagedjs_page").innerText());
+  expect(withNumbers).toContain(sentence);
+  expect(withNumbers).toContain("Powered by DBS");
+  expect(withNumbers).toContain("Page 1");
+
+  await page.getByRole("button", { name: /^Export PDF/ }).click();
+  await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
+  const pdf = await page.pdf({
+    path: testInfo.outputPath("vfm-150-one-page.pdf"),
+    format: "Letter",
+    printBackground: true,
+    preferCSSPageSize: true,
+  });
+  const pages = await pdfPageText(pdf);
+  expect(pages).toHaveLength(1);
+  const exported = normalizedText(pages[0]);
+  expect(exported).not.toContain("Skip to document editor");
+  for (const expected of [sentence, "Powered by DBS", "Page 1"]) {
+    expect(exported).toContain(expected);
+  }
+  await testInfo.attach("VFM-150 one-page PDF", { body: pdf, contentType: "application/pdf" });
 });
 
 test("reports an unwritable PDF destination without changing open writing", async ({ page }) => {
@@ -99,10 +149,10 @@ test("offline output makes no scripture-provider request", async ({ page }) => {
   expect(await page.evaluate(() => window.__outputProviderRequests)).toBe(0);
 });
 
-test("multi-page PDF contains every footer, notice, and optional page number", async ({
+test("multi-page preview and PDF share boundaries, formatting, notices, and page numbers", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/?dbs=long-notice");
   const editor = page.getByRole("textbox", { name: "Document editor" });
   await selectScriptureTranslation(page, "ENGTEST");
   await editor.click();
@@ -135,7 +185,25 @@ test("multi-page PDF contains every footer, notice, and optional page number", a
 
   await togglePageNumbers(page);
   await chooseMenuItem(page, "File", /^Save PDF$/);
-  await expect(page.frameLocator('iframe[title="PDF export preview"]').locator("body")).toContainText("Reflection 54.");
+  const preview = page.getByTestId("pdf-export-preview");
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview).toHaveAttribute("data-footer-fits", "true");
+  await expect(preview).toContainText("Reflection 54.");
+  const previewPages = await preview.locator(".pagedjs_page").allInnerTexts();
+  expect(previewPages.length).toBeGreaterThanOrEqual(3);
+  const longNotice = "DBS test fixture — not production scripture. This deliberately long fixture verifies that complete translation-specific attribution remains visible on every page, wraps inside the reserved footer without clipping, and is preserved unchanged in the exported PDF.";
+  for (const [index, text] of previewPages.entries()) {
+    const normalized = normalizedText(text);
+    expect(normalized).toContain("Powered by DBS");
+    expect(normalized).toContain("World English Bible (Public Domain)");
+    expect(normalized).toContain(longNotice);
+    expect(normalized).toContain(`Page ${index + 1}`);
+  }
+  const previewScreenshot = await page.screenshot({
+    path: "artifacts/vfm-150-multi-page-preview.png",
+    fullPage: false,
+  });
+  await testInfo.attach("VFM-150 multi-page preview", { body: previewScreenshot, contentType: "image/png" });
   await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
 
@@ -147,12 +215,15 @@ test("multi-page PDF contains every footer, notice, and optional page number", a
     preferCSSPageSize: true,
   });
   const pages = await pdfPageText(pdf);
-  expect(pages.length).toBeGreaterThanOrEqual(3);
+  expect(pages).toHaveLength(previewPages.length);
   for (const [index, text] of pages.entries()) {
-    expect(text).toContain("Powered by DBS");
-    expect(text).toContain("World English Bible (Public Domain)");
-    expect(text).toContain("DBS test fixture — not production scripture.");
-    expect(text).toContain(`Page ${index + 1}`);
+    const normalized = normalizedText(text);
+    expect(normalized).not.toContain("Skip to document editor");
+    expect(normalized).toContain("Powered by DBS");
+    expect(normalized).toContain("World English Bible (Public Domain)");
+    expect(normalized).toContain(longNotice);
+    expect(normalized).toContain(`Page ${index + 1}`);
+    expect(reflectionMarkers(normalized)).toEqual(reflectionMarkers(previewPages[index]));
   }
   expect(pages.join(" ")).toContain("Reflection 54.");
   await testInfo.attach("VFM-050 attributed PDF", { body: pdf, contentType: "application/pdf" });

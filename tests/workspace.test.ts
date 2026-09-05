@@ -546,9 +546,44 @@ describe("workspace kernel", () => {
     const paged = step(prepared.state, { type: "output.togglePageNumbers" });
     expect(paged.state.output.snapshot?.bodyHtml).toBe(prepared.state.output.snapshot?.bodyHtml);
     expect(paged.state.output.snapshot?.pageNumbers).toBe(true);
+    expect(paged.state.output.layoutReady).toBe(false);
+    expect(step(paged.state, { type: "output.confirmPdf" }).state).toBe(paged.state);
+    expect(step(paged.state, {
+      type: "output.layoutReady",
+      operationId: capture.stamp.id,
+      mode: "pdf",
+      layoutVersion: prepared.state.output.layoutVersion,
+    }).state).toBe(paged.state);
+    expect(step(paged.state, {
+      type: "output.layoutFailed",
+      operationId: capture.stamp.id,
+      mode: "pdf",
+      layoutVersion: prepared.state.output.layoutVersion,
+      error: "Stale layout failure",
+    }).state).toBe(paged.state);
+    const layoutFailed = step(paged.state, {
+      type: "output.layoutFailed",
+      operationId: capture.stamp.id,
+      mode: "pdf",
+      layoutVersion: paged.state.output.layoutVersion,
+      error: "Footer does not fit",
+    });
+    expect(layoutFailed.state.output.phase).toBe("idle");
+    expect(layoutFailed.state.output.snapshot).toBeUndefined();
+    expect(layoutFailed.state.output.layoutReady).toBe(false);
+    expect(layoutFailed.state.overlay.type).toBe("none");
+    expect(layoutFailed.state.notice.message).toContain("Footer does not fit");
     expect(step(paged.state, { type: "output.paintReady", operationId: capture.stamp.id, mode: "pdf" }).effects).toEqual([]);
 
-    const confirmed = step(paged.state, { type: "output.confirmPdf" });
+    const laidOut = step(paged.state, {
+      type: "output.layoutReady",
+      operationId: capture.stamp.id,
+      mode: "pdf",
+      layoutVersion: paged.state.output.layoutVersion,
+    });
+    expect(laidOut.state.output.layoutReady).toBe(true);
+    expect(laidOut.effects).toEqual([]);
+    const confirmed = step(laidOut.state, { type: "output.confirmPdf" });
     expect(confirmed.state.output.phase).toBe("preparing");
     expect(confirmed.state.overlay.type).toBe("none");
     expect(effect(confirmed.effects, "output.afterPaint").mode).toBe("pdf");
@@ -556,6 +591,7 @@ describe("workspace kernel", () => {
     expect(effect(painted.effects, "output.savePdf").snapshot).toBe(paged.state.output.snapshot);
     const canceled = step(painted.state, { type: "output.pdfResult", operationId: capture.stamp.id, saved: null });
     expect(canceled.state.output.phase).toBe("idle");
+    expect(canceled.state.output.layoutReady).toBe(false);
     expect(canceled.state.notice.message).toContain("canceled");
 
     const requestedForDialogCancel = step(initial(), { type: "output.request", mode: "pdf" });
@@ -573,6 +609,21 @@ describe("workspace kernel", () => {
 
     const print = step(initial(), { type: "output.request", mode: "print" });
     const printId = print.state.output.stamp!.id;
+    const printCapture = effect(print.effects, "editor.capture");
+    const printPrepared = step(print.state, {
+      type: "editor.captured",
+      stamp: printCapture.stamp,
+      purpose: { type: "output", mode: "print" },
+      document: documentFor(printCapture.stamp),
+    });
+    expect(printPrepared.effects).toEqual([]);
+    const printReady = step(printPrepared.state, {
+      type: "output.layoutReady",
+      operationId: printId,
+      mode: "print",
+      layoutVersion: printPrepared.state.output.layoutVersion,
+    });
+    expect(effect(printReady.effects, "output.afterPaint").mode).toBe("print");
     const failed = step({ ...print.state, output: { ...print.state.output, phase: "printing" } }, {
       type: "output.failed", operationId: printId, mode: "print", error: "Printer unavailable",
     });

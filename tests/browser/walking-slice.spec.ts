@@ -58,10 +58,11 @@ test("walks from a detected reference through attributed PDF output", async ({
 
   await togglePageNumbers(page);
   await chooseMenuItem(page, "File", /^Save PDF$/);
-  const printFrame = page.frameLocator('iframe[title="PDF export preview"]');
-  await expect(printFrame.locator("body")).toContainText("Powered by DBS");
-  await expect(printFrame.locator("body")).toContainText("NASB browser fixture");
-  await expect(printFrame.locator("body")).toContainText("Page 1");
+  const outputPreview = page.getByTestId("pdf-export-preview");
+  await expect(outputPreview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(outputPreview).toContainText("Powered by DBS");
+  await expect(outputPreview).toContainText("NASB browser fixture");
+  await expect(outputPreview).toContainText("Page 1");
   await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
 
   const pdf = await page.pdf({

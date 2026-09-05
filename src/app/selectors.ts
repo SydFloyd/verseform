@@ -48,6 +48,7 @@ export type WorkspaceViewModel = {
   preview?: PreviewState;
   pageNumbers: boolean;
   outputBusy: boolean;
+  outputLayoutReady: boolean;
   printSnapshot: WorkspaceState["output"]["snapshot"];
   overlay: WorkspaceOverlay;
   formatting: EditorFormatting;
@@ -67,6 +68,7 @@ export function selectViewModel(state: WorkspaceState): WorkspaceViewModel {
     preview: state.scripture.preview,
     pageNumbers: state.output.pageNumbers,
     outputBusy: state.output.phase !== "idle",
+    outputLayoutReady: Boolean(state.output.layoutReady),
     printSnapshot: state.output.snapshot,
     overlay: state.overlay,
     formatting: state.formatting,

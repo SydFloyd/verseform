@@ -98,8 +98,9 @@ test("offline alpha flow inserts, saves, reopens, prints, and exports", async ({
   await page.keyboard.press("Control+p");
   await expect(page.getByRole("status")).toContainText("Browser print preview opened");
   await chooseMenuItem(page, "File", /^Save PDF$/);
-  await expect(page.frameLocator('iframe[title="PDF export preview"]').locator("body"))
-    .toContainText("Powered by DBS");
+  const preview = page.getByTestId("pdf-export-preview");
+  await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+  await expect(preview).toContainText("Powered by DBS");
   await page.getByRole("dialog", { name: "Export PDF" }).getByRole("button", { name: /^Export PDF/ }).click();
   await expect(page.getByRole("status")).toContainText("Exported Untitled.pdf");
 });

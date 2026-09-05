@@ -206,10 +206,11 @@ describe("portable documents and output", () => {
     expect(snapshot.html).not.toContain("<untrusted>");
     expect(snapshot.html).toContain("Powered by DBS");
     expect(snapshot.html).toContain("World English Bible");
-    expect(snapshot.html).toContain("Page 1");
+    expect(snapshot.footerHtml).toContain("print-page-number");
+    expect(snapshot.sourceHtml).not.toContain("Powered by DBS");
     expect(snapshot.pageNumbers).toBe(true);
-    expect(snapshot.printCss).toContain('content: "Page " counter(page)');
-    expect(snapshot.printCss).toContain("@bottom-left");
+    expect(snapshot.printCss).toContain("size: letter");
+    expect(snapshot.printCss).toContain("margin: 0.75in 0.75in 1.5in");
   });
 
   it("uses escaped attribution carried by an inserted DBS citation", () => {
@@ -235,14 +236,14 @@ describe("portable documents and output", () => {
     expect(snapshot.html).toContain("DBS Test Bible &lt;copyright owner&gt;");
     expect(snapshot.html).not.toContain("<copyright owner>");
     expect(snapshot.pageNumbers).toBe(false);
-    expect(snapshot.printCss).not.toContain('content: "Page " counter(page)');
+    expect(snapshot.footerHtml).not.toContain("print-page-number");
 
     const paged = updatePrintSnapshotOptions(snapshot, { pageNumbers: true });
     expect(paged).not.toBe(snapshot);
     expect(paged.title).toBe(snapshot.title);
     expect(paged.bodyHtml).toBe(snapshot.bodyHtml);
     expect(paged.notices).toEqual(snapshot.notices);
-    expect(paged.html).toContain("Page 1");
-    expect(paged.printCss).toContain('content: "Page " counter(page)');
+    expect(paged.footerHtml).toContain("print-page-number");
+    expect(paged.sourceHtml).toBe(snapshot.sourceHtml);
   });
 });

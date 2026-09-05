@@ -54,7 +54,9 @@ class BrowserDbsTransport implements DbsTransport {
       },
       {
         abbr: "ENGTEST", title: "DBS Test Bible", title_vernacular: "DBS Test Bible",
-        iso: "eng", script: "Latn", year: "2026", copyright: "DBS test fixture — not production scripture.",
+        iso: "eng", script: "Latn", year: "2026", copyright: this.mode === "long-notice"
+          ? "DBS test fixture — not production scripture. This deliberately long fixture verifies that complete translation-specific attribution remains visible on every page, wraps inside the reserved footer without clipping, and is preserved unchanged in the exported PDF."
+          : "DBS test fixture — not production scripture.",
       },
     ];
     return { body: JSON.stringify(translations) };

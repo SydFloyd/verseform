@@ -1,5 +1,6 @@
 import { contentHash, createVerseformDocument } from "../core/document";
 import { isLookupFresh } from "../core/lookup";
+import type { PrintSnapshot } from "../core/output";
 import type { DetectedReference, ReferenceCandidate } from "../core/reference";
 import type { EditorFocusPosition, EditorGateway, FindResult, ParagraphSettings } from "../editor/gateway";
 import type { RuntimeAdapters, Translation } from "./ports";
@@ -133,6 +134,37 @@ export class WorkspaceController {
 
   focusReference(position: Extract<EditorFocusPosition, "firstReference" | "lastReference">): void {
     this.send({ type: "editor.command", instruction: { type: "focus", position } });
+  }
+
+  outputLayoutReady(snapshot: PrintSnapshot, footerFits: boolean): void {
+    const output = this.state.output;
+    if (output.snapshot !== snapshot || !output.stamp || !output.mode) return;
+    this.send(footerFits
+      ? {
+        type: "output.layoutReady",
+        operationId: output.stamp.id,
+        mode: output.mode,
+        layoutVersion: output.layoutVersion,
+      }
+      : {
+        type: "output.layoutFailed",
+        operationId: output.stamp.id,
+        mode: output.mode,
+        layoutVersion: output.layoutVersion,
+        error: "required scripture attribution does not fit inside the page footer",
+      });
+  }
+
+  outputLayoutFailed(snapshot: PrintSnapshot, error: string): void {
+    const output = this.state.output;
+    if (output.snapshot !== snapshot || !output.stamp || !output.mode) return;
+    this.send({
+      type: "output.layoutFailed",
+      operationId: output.stamp.id,
+      mode: output.mode,
+      layoutVersion: output.layoutVersion,
+      error,
+    });
   }
 
   send(event: WorkspaceEvent): void {

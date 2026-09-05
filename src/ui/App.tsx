@@ -7,8 +7,10 @@ import {
   type PositionedValidReference,
 } from "../editor/EditorSurface";
 import type { Alignment } from "../editor/gateway";
+import type { PrintSnapshot } from "../core/output";
 import { CreditsDialog } from "./CreditsDialog";
 import { PdfExportDialog } from "./PdfExportDialog";
+import { PaginatedOutput, type PaginationResult } from "./PaginatedOutput";
 import { TranslationPicker } from "./TranslationPicker";
 
 type MenuName = "file" | "edit" | "help";
@@ -192,6 +194,11 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const editMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const helpMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousOverlay = useRef(view.overlay.type);
+  const [previewLayout, setPreviewLayout] = useState<{
+    snapshot: PrintSnapshot;
+    result?: PaginationResult;
+    error?: string;
+  }>();
 
   useEffect(() => {
     if (view.overlay.type === "find" && previousOverlay.current !== "find") {
@@ -249,6 +256,16 @@ export function App({ controller }: { controller: WorkspaceController }) {
     : undefined;
   const credits = view.overlay.type === "credits" ? view.overlay : undefined;
   const pdfExport = view.overlay.type === "pdfExport" ? view.overlay : undefined;
+  const currentPreviewLayout = previewLayout?.snapshot === view.printSnapshot ? previewLayout : undefined;
+  const paginationError = currentPreviewLayout?.error
+    ?? (currentPreviewLayout?.result && !currentPreviewLayout.result.footerFits
+      ? "required scripture attribution does not fit inside the page footer"
+      : undefined);
+  const pdfLayoutReady = Boolean(
+    view.outputLayoutReady
+    && currentPreviewLayout?.result?.footerFits
+    && !paginationError,
+  );
   const formatting = view.formatting;
   const recovery = view.recoveries[0];
   const initialCanon = controller.getState().scripture.fallback.canon;
@@ -401,6 +418,11 @@ export function App({ controller }: { controller: WorkspaceController }) {
         onCancel={cancelPdfExport}
         onExport={() => controller.confirmPdfExport()}
         onKeyDown={(event) => trapFocus(event, pdfDialogRef.current, cancelPdfExport)}
+        ready={pdfLayoutReady}
+        pageCount={currentPreviewLayout?.result?.pageCount}
+        paginationError={paginationError}
+        onPreviewReady={(snapshot, result) => setPreviewLayout({ snapshot, result })}
+        onPreviewError={(snapshot, error) => setPreviewLayout({ snapshot, error })}
       /> : null}
 
       {credits ? <CreditsDialog
@@ -433,7 +455,12 @@ export function App({ controller }: { controller: WorkspaceController }) {
         ? `Your current writing has not been saved. Save it before restoring ${recoveryConfirmation.displayName}, recovered ${new Date(recoveryConfirmation.recovery.capturedAtMs).toLocaleString()}.`
         : "Your latest writing has not been saved to the document."}</p><div><button autoFocus type="button" onClick={() => resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => resolvePending("save")}>Save</button></div></section></div> : null}
 
-      {view.printSnapshot ? <><style>{view.printSnapshot.printCss}</style><article className="print-document print-surface" aria-hidden="true"><main dangerouslySetInnerHTML={{ __html: view.printSnapshot.bodyHtml }} /><footer className="print-footer"><strong>Powered by DBS</strong>{view.printSnapshot.notices.map((item) => <p className="translation-notice" key={item}>{item}</p>)}</footer>{view.printSnapshot.pageNumbers ? <div className="preview-page-number">Page 1</div> : null}</article></> : null}
+      {view.printSnapshot ? <div className="print-surface" aria-hidden="true"><PaginatedOutput
+        snapshot={view.printSnapshot}
+        mode="print"
+        onReady={(snapshot, result) => controller.outputLayoutReady(snapshot, result.footerFits)}
+        onError={(snapshot, error) => controller.outputLayoutFailed(snapshot, error)}
+      /></div> : null}
     </>
   );
 }

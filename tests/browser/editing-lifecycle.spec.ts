@@ -91,9 +91,10 @@ test("formats with keyboard and toolbar controls, then preserves formatting on r
   await page.keyboard.press("Control+p");
   await expect(page.getByRole("status")).toContainText("Browser print preview opened");
   const printSurface = page.locator(".print-surface");
-  await expect(printSurface.locator("strong").first()).toHaveText("Bold");
-  await expect(printSurface.locator("a").first()).toHaveAttribute("href", "https://example.com");
-  await expect(printSurface.locator("p").first()).toHaveCSS("text-align", "center");
+  const printedDocument = printSurface.locator(".print-document");
+  await expect(printedDocument.locator("strong").first()).toHaveText("Bold");
+  await expect(printedDocument.locator("a").first()).toHaveAttribute("href", "https://example.com");
+  await expect(printedDocument.locator("p").first()).toHaveCSS("text-align", "center");
 });
 
 test("find/replace and clean paste keep only safe writing markup", async ({ page }) => {

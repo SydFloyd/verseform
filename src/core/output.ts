@@ -5,6 +5,8 @@ export type PrintOptions = { pageNumbers: boolean };
 export type PrintSnapshot = {
   title: string;
   html: string;
+  sourceHtml: string;
+  footerHtml: string;
   bodyHtml: string;
   notices: string[];
   pageNumbers: boolean;
@@ -33,16 +35,6 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function escapeCssString(value: string): string {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll('"', '\\"')
-    .replaceAll("<", "\\3C ")
-    .replaceAll(">", "\\3E ")
-    .replaceAll("\r", "")
-    .replaceAll("\n", "\\A ");
 }
 
 function safeNumber(value: unknown, minimum: number, maximum: number): number | undefined {
@@ -166,33 +158,26 @@ function assemblePrintSnapshot(
   notices: string[],
   options: PrintOptions,
 ): PrintSnapshot {
-  const pageNumber = options.pageNumbers
-    ? '<div class="preview-page-number" aria-label="Page 1">Page 1</div>'
-    : "";
   const noticesHtml = notices.map(
     (notice) => `<p class="translation-notice">${escapeHtml(notice)}</p>`,
   ).join("");
-  const footerText = escapeCssString(["Powered by DBS", ...notices].join("\n"));
+  const footerHtml = `<footer class="print-footer"><div class="print-footer-copy"><strong>Powered by DBS</strong>${noticesHtml}</div>${options.pageNumbers ? '<span class="print-page-number" aria-label="Page number"></span>' : ""}</footer>`;
+  const sourceHtml = `<article class="print-document"><main>${bodyHtml}</main></article>`;
   const printCss = `
     @page {
       size: letter;
       margin: 0.75in 0.75in 1.5in;
-      @bottom-left { content: "${footerText}"; font: 7.5pt/1.2 system-ui, sans-serif; color: #514b40; text-align: left; white-space: pre-wrap; }
-      ${options.pageNumbers ? '@bottom-right { content: "Page " counter(page); font: 9pt system-ui, sans-serif; color: #514b40; }' : ""}
     }
     .print-document { color: #191711; font-family: Garamond, Georgia, serif; font-size: 12pt; line-height: 1.5; }
-    .print-document main { flex: 1 0 auto; }
     .print-document p { margin: 0 0 0.75em; }
+    .print-document h1, .print-document h2, .print-document h3,
+    .print-document h4, .print-document h5, .print-document h6 { break-after: avoid; }
     .print-document cite { font-style: normal; }
     .print-document a { color: inherit; text-decoration: underline; }
-    .print-document .print-footer { border-top: 1px solid #b8ae9c; color: #514b40; font: 7.5pt/1.2 system-ui, sans-serif; padding-top: 0.08in; }
-    .print-document .translation-notice { margin: 0.04in 0 0; }
-    .print-document .preview-page-number { color: #514b40; font: 9pt system-ui, sans-serif; margin-top: 0.15in; text-align: right; }
-    @media print {
-      .print-document { display: flex; flex-direction: column; margin: 0; max-width: none; min-height: auto; }
-      .print-document .print-footer { display: none; }
-      .print-document .preview-page-number { display: none; }
-    }
+    .print-footer { align-items: start; border-top: 1px solid #b8ae9c; box-sizing: border-box; color: #514b40; display: grid; font: 7.5pt/1.2 system-ui, sans-serif; gap: 0.18in; grid-template-columns: minmax(0, 1fr) auto; padding-top: 0.08in; width: 100%; }
+    .print-footer-copy { min-width: 0; }
+    .print-footer .translation-notice { margin: 0.04in 0 0; overflow-wrap: anywhere; }
+    .print-page-number { font-size: 9pt; white-space: nowrap; }
   `;
 
   const html = `<!doctype html>
@@ -204,25 +189,26 @@ function assemblePrintSnapshot(
     ${printCss}
     html { background: #f3efe7; }
     body { margin: 0; padding: 0.45in; }
-    .print-document { background: white; box-sizing: border-box; display: flex; flex-direction: column; margin: 0 auto; max-width: 8.5in; min-height: 11in; padding: 0.75in 0.75in 1.5in; }
-    .print-document .print-footer { margin-top: auto; }
-    @media print {
-      html { background: white; }
-      body { padding: 0; }
-      .print-document { padding: 0; }
-    }
+    .print-document { background: white; box-sizing: border-box; margin: 0 auto; max-width: 8.5in; min-height: 11in; padding: 0.75in 0.75in 1.5in; }
+    .print-footer { margin: -1.25in auto 0; max-width: 7in; }
   </style>
 </head>
 <body>
-  <article class="print-document">
-    <main>${bodyHtml}</main>
-    <footer class="print-footer"><strong>Powered by DBS</strong>${noticesHtml}</footer>
-    ${pageNumber}
-  </article>
+  ${sourceHtml}
+  ${footerHtml}
 </body>
 </html>`;
 
-  return { title, html, bodyHtml, notices, pageNumbers: options.pageNumbers, printCss };
+  return {
+    title,
+    html,
+    sourceHtml,
+    footerHtml,
+    bodyHtml,
+    notices,
+    pageNumbers: options.pageNumbers,
+    printCss,
+  };
 }
 
 export function buildPrintSnapshot(

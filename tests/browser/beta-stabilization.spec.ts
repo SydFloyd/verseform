@@ -37,7 +37,9 @@ test("repeats complete document, scripture, print, and PDF cycles without strand
 
     await chooseMenuItem(page, "File", /^Save PDF$/);
     const dialog = page.getByRole("dialog", { name: "Export PDF" });
-    await expect(page.frameLocator('iframe[title="PDF export preview"]').locator("body")).toContainText(`Cycle ${cycle}.`);
+    const preview = page.getByTestId("pdf-export-preview");
+    await expect(preview).toHaveAttribute("data-pagination-ready", "true");
+    await expect(preview).toContainText(`Cycle ${cycle}.`);
     if (cycle % 2) {
       await dialog.getByRole("button", { name: "Cancel" }).click();
     } else {
