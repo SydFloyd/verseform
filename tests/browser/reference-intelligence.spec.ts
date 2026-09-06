@@ -85,3 +85,29 @@ test("keeps previews inside the viewport and supports keyboard insertion", async
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, NASB)");
   await expect(page.locator(".scripture-reference")).toHaveCount(0);
 });
+
+test("inserts a later reference after an earlier replacement shifts its document position", async ({ page }) => {
+  const editor = page.getByRole("textbox", { name: "Document editor" });
+  await editor.click();
+  await page.keyboard.type("john 1:1");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("jon 1:1 ");
+
+  const references = page.locator(".scripture-reference");
+  await expect(references).toHaveCount(2);
+
+  await references.first().click();
+  await expect(page.locator(".scripture-citation")).toHaveCount(1);
+  await expect(references).toHaveCount(1);
+
+  await references.first().hover();
+  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 1 for JON");
+  await references.first().click();
+
+  await expect(page.locator(".scripture-citation")).toHaveCount(2);
+  await expect(page.locator(".scripture-citation")).toHaveText([
+    "(John 1:1, NASB)",
+    "(Jonah 1:1, NASB)",
+  ]);
+  await expect(references).toHaveCount(0);
+});

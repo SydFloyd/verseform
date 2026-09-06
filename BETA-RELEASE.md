@@ -22,6 +22,10 @@ The patch keeps the Alpha/Beta application identity and document schema. Install
 
 The immutable [0.2.0 pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.0) remains available as historical evidence; its assets are not replaced.
 
+## Field finding after publication
+
+Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position. The immutable public release remains available as its exact verified artifact; the correction is in source and must be delivered as a new verified patch before the affected task is retested.
+
 ## Keyboard
 
 - `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, `Ctrl+Shift+S`, and `Ctrl+P` run the matching document action.
@@ -66,6 +70,7 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, Linux, and web distribution are outside this Beta.
 - Print uses the WebView2 browser-preview path. PDF export uses a fixed Letter layout with required scripture notices and an optional page number; printer availability and native destination permissions remain Windows responsibilities.
 - Independent-user validation remains pending until the session above is completed; automated and owner checks establish the candidate, not uncoached usability.
+- The public `0.2.1` build contains the shifted-later-reference insertion defect described above; do not use it as completion evidence for the independent-user gate.
 
 ## Release evidence
 

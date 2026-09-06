@@ -1,7 +1,7 @@
 import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import {
   isValidReference, scanReferences, type DetectedReference,
   type ReferenceCandidate, type TextRange,
@@ -133,10 +133,17 @@ function referenceElement(target: EventTarget | null): HTMLElement | null {
   return target.closest<HTMLElement>("[data-verseform-reference]");
 }
 
-function candidateFrom(element: HTMLElement): PositionedReference | null {
+function candidateFrom(element: HTMLElement, view: EditorView): PositionedReference | null {
   const encoded = element.dataset.verseformReference;
   if (!encoded) return null;
-  try { return JSON.parse(decodeURIComponent(encoded)) as PositionedReference; }
+  try {
+    const candidate = JSON.parse(decodeURIComponent(encoded)) as PositionedReference;
+    const from = view.posAtDOM(element, 0);
+    const to = from + candidate.sourceText.length;
+    return view.state.doc.textBetween(from, to, "\n", "\n") === candidate.sourceText
+      ? { ...candidate, from, to }
+      : null;
+  }
   catch { return null; }
 }
 
@@ -161,9 +168,9 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
 
   addProseMirrorPlugins() {
     const options = this.options;
-    const showPreview = (target: EventTarget | null) => {
+    const showPreview = (view: EditorView, target: EventTarget | null) => {
       const element = referenceElement(target);
-      const candidate = element && candidateFrom(element);
+      const candidate = element && candidateFrom(element, view);
       if (element && candidate) options.onHover(candidate, element.getBoundingClientRect());
       return { element, candidate };
     };
@@ -182,22 +189,22 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
         props: {
           decorations: (state) => referenceDecorationKey.getState(state),
           handleDOMEvents: {
-            click: (_view, event) => {
+            click: (view, event) => {
               const element = referenceElement(event.target);
-              const candidate = element && candidateFrom(element);
+              const candidate = element && candidateFrom(element, view);
               if (!element || !candidate) return false;
               if (isValidReference(candidate)) options.onClick(candidate);
               else options.onHover(candidate, element.getBoundingClientRect());
               return true;
             },
-            mouseover: (_view, event) => { showPreview(event.target); return false; },
+            mouseover: (view, event) => { showPreview(view, event.target); return false; },
             mouseout: (_view, event) => {
               const element = referenceElement(event.target);
               const next = referenceElement(event.relatedTarget);
               if (element && next !== element) options.onLeave();
               return false;
             },
-            focusin: (_view, event) => { showPreview(event.target); return false; },
+            focusin: (view, event) => { showPreview(view, event.target); return false; },
             focusout: (_view, event) => {
               if (referenceElement(event.target) && !referenceElement(event.relatedTarget)) options.onLeave();
               return false;
@@ -220,7 +227,7 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
                 return true;
               }
               if (event.key !== "Enter" && event.key !== " ") return false;
-              const { candidate } = showPreview(document.activeElement);
+              const { candidate } = showPreview(view, document.activeElement);
               if (!candidate) return false;
               event.preventDefault();
               if (isValidReference(candidate)) {
