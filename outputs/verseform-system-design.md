@@ -111,6 +111,8 @@ command or external event
 
 The browser harness exposes the frozen, versioned `window.__VERSEFORM_DIAGNOSTICS__` snapshot containing region phases, operation IDs, revision and hashes, effective translation, and enabled commands. It omits document text, arbitrary paths, provider payloads, and credentials and is absent from the production Tauri composition. A browser test verifies those properties. This replaces DOM inference for orchestration tests without becoming telemetry or persisted application state.
 
+Close has one platform owner. The browser harness uses `beforeunload` to protect dirty writing. The Windows composition instead prevents the initial Tauri close request, routes it through the kernel's shared Save/Discard/Cancel transition, and force-destroys the window only after the transition authorizes closing. It does not register the browser unload blocker in the desktop composition, because two independent guards can strand a dirty WebView2 window.
+
 The command registry and diagnostic schema are finite product contracts. Do not add dynamic registration, reflection, remote control, or production logging infrastructure.
 
 ## Core contracts
@@ -222,7 +224,7 @@ Release evidence is produced from a clean Windows runner, not inferred from a de
 
 ### Field Beta distribution boundary
 
-Each public GitHub pre-release is a projection of clean-runner evidence, not a second build path. The `v0.2.0` tag remains fixed to the original field Beta, while `v0.2.1` names the corrected patch candidate. For each version, the installer, `SHA256SUMS.txt`, and `release-evidence.json` are copied byte-for-byte from its clean run. The release page links the full local release record and privacy statement, labels the build as an unsigned Windows Beta, and never presents it as stable or publisher-verified. Once published, an asset is immutable by policy; a changed executable requires a new version, a new clean run, and a new release.
+Each public GitHub pre-release is a projection of clean-runner evidence, not a second build path. The `v0.2.0` and `v0.2.1` tags remain fixed to their field builds, while `v0.2.2` names the session-blocker patch candidate. For each version, the installer, `SHA256SUMS.txt`, and `release-evidence.json` are copied byte-for-byte from its clean run. The release page links the full local release record and privacy statement, labels the build as an unsigned Windows Beta, and never presents it as stable or publisher-verified. Once published, an asset is immutable by policy; a changed executable requires a new version, a new clean run, and a new release.
 
 Field feedback is an optional human boundary rather than application telemetry. A repository issue form requests categorical environment context and invented, non-sensitive reproduction steps. It warns users not to attach documents, recovery state, cache contents, private writing, personal information, or credentials. Verseform performs no issue submission, version check, crash upload, background request, or update installation; opening the application cannot contact GitHub.
 

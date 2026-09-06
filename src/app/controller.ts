@@ -78,7 +78,9 @@ export class WorkspaceController {
   start(): void {
     if (this.started) return;
     this.started = true;
-    this.disposers.push(this.dependencies.host.onBeforeUnload(() => selectDirty(this.state)));
+    if (this.dependencies.runtime.kind === "browser") {
+      this.disposers.push(this.dependencies.host.onBeforeUnload(() => selectDirty(this.state)));
+    }
     this.disposers.push(this.dependencies.host.onKeyStroke((stroke) => {
       const command = commandForKeyStroke(stroke);
       if (!command) return false;

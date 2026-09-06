@@ -57,6 +57,7 @@ const latestContent: EditorNode = {
 };
 
 type HarnessOptions = {
+  kind?: RuntimeAdapters["kind"];
   writeRecovery?: (snapshot: RecoverySnapshot) => Promise<void>;
   listRecoveries?: () => Promise<RecoverySnapshot[]>;
   discardRecovery?: (documentId: string) => Promise<void>;
@@ -65,17 +66,24 @@ type HarnessOptions = {
 function harness(options: HarnessOptions = {}) {
   const scheduler = new FakeScheduler();
   let shortcut: ((stroke: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean }) => boolean) | undefined;
+  let closeRequested: (() => void) | undefined;
   const diagnostics: unknown[] = [];
+  const onBeforeUnload = vi.fn(() => () => undefined);
   const host: WorkspaceHost = {
-    onBeforeUnload: () => () => undefined,
+    onBeforeUnload,
     onKeyStroke: (handler) => { shortcut = handler; return () => { shortcut = undefined; }; },
     promptForLink: () => null,
     publishDiagnostics: (snapshot) => diagnostics.push(snapshot),
   };
   const writeRecovery = vi.fn(options.writeRecovery ?? (async (_snapshot: RecoverySnapshot) => undefined));
   const discardRecovery = vi.fn(options.discardRecovery ?? (async (_documentId: string) => undefined));
+  const onCloseRequested = vi.fn(async (handler: () => void) => {
+    closeRequested = handler;
+    return () => { closeRequested = undefined; };
+  });
+  const closeWindow = vi.fn(async () => undefined);
   const runtime: RuntimeAdapters = {
-    kind: "browser",
+    kind: options.kind ?? "browser",
     scripture: {
       listTranslations: async () => ({ translations: [web], offline: false }),
       getPassage: async () => { throw new Error("not used"); },
@@ -102,9 +110,9 @@ function harness(options: HarnessOptions = {}) {
       open: async () => undefined,
     },
     window: {
-      onCloseRequested: async () => () => undefined,
+      onCloseRequested,
       setTitle: async () => undefined,
-      close: async () => undefined,
+      close: closeWindow,
     },
   };
   let observation: ((value: EditorObservation) => void) | undefined;
@@ -137,6 +145,13 @@ function harness(options: HarnessOptions = {}) {
     discardRecovery,
     diagnostics,
     dispatched,
+    onBeforeUnload,
+    onCloseRequested,
+    closeWindow,
+    requestClose() {
+      if (!closeRequested) throw new Error("The close-request listener is not ready.");
+      closeRequested();
+    },
     emit(value: EditorObservation) { observation?.(value); },
     freeze(value: EditorNode) { frozen = value; },
     shortcut(value: { key: string; ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean }) {
@@ -146,6 +161,33 @@ function harness(options: HarnessOptions = {}) {
 }
 
 describe("workspace controller", () => {
+  test("desktop close requests use the native dirty gate without a competing browser unload block", async () => {
+    const desktop = harness({ kind: "tauri" });
+    desktop.controller.start();
+    desktop.controller.attachEditor(desktop.gateway);
+    await vi.waitFor(() => expect(desktop.onCloseRequested).toHaveBeenCalledTimes(1));
+    expect(desktop.onBeforeUnload).not.toHaveBeenCalled();
+
+    desktop.freeze(latestContent);
+    desktop.emit({
+      contentHash: contentHash(latestContent),
+      formatting: DEFAULT_FORMATTING,
+      documentChanged: true,
+    });
+    desktop.requestClose();
+    expect(desktop.controller.getState().overlay).toEqual({ type: "confirm", action: { type: "close" } });
+    expect(desktop.closeWindow).not.toHaveBeenCalled();
+
+    desktop.controller.resolveConfirmation("discard");
+    await vi.waitFor(() => expect(desktop.closeWindow).toHaveBeenCalledTimes(1));
+    desktop.controller.destroy();
+
+    const browser = harness();
+    browser.controller.start();
+    expect(browser.onBeforeUnload).toHaveBeenCalledTimes(1);
+    browser.controller.destroy();
+  });
+
   test("the fake scheduler cancels superseded recovery work and freezes only the latest editor state", async () => {
     const testHarness = harness();
     testHarness.controller.start();

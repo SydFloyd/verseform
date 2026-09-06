@@ -1,30 +1,32 @@
-# Verseform 0.2.1 Windows Beta
+# Verseform 0.2.2 Windows Beta candidate
 
 ## Corrected patch release
 
-The clean Windows workflow publishes [Verseform 0.2.1](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) only after the exact commit passes the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release attaches `Verseform_0.2.1_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
+The clean Windows workflow will publish Verseform 0.2.2 only after the exact commit passes the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release will attach `Verseform_0.2.2_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
 
 This remains an unsigned field Beta, not a stable `1.0` or verified-publisher release. Windows SmartScreen may show an unrecognized-publisher warning. Optional defect and daily-use reports belong in the [privacy-constrained Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml); never attach private writing or Verseform document, recovery, or cache files.
 
 ## Supported Beta
 
-Verseform 0.2.1 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect valid, fuzzy, ranged, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
+Verseform 0.2.2 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect valid, fuzzy, ranged, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
 
 Online sessions load authorized translations from the public Digital Bible Society ARC API, prefer a saved translation and otherwise NASB when available, and cache successful catalogs for one day and chapters for seven days. Offline sessions explicitly use the bundled public-domain World English Bible (WEB) without changing the saved online preference. Help → Credits & Licenses records the installed version, thanks and links to DBS, identifies the effective translation and WEB, and exposes the audited software-license inventory locally.
 
-The patch keeps the Alpha/Beta application identity and document schema. Installing 0.2.1 over 0.1.0 or 0.2.0 preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
+The patch keeps the Alpha/Beta application identity and document schema. Installing 0.2.2 over 0.1.0, 0.2.0, or 0.2.1 preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
 
 ## Corrected since 0.2.0
 
 - Recovery Restore now identifies the recovery and protects a different dirty draft with Save, Discard, or Cancel. A canceled/failed Save or newer edit does not restore over accepted writing.
 - `F6` moves from writing through detected references to File; `Shift+F6` reverses the route, arrows traverse references, and Escape returns to writing without taking Tab/Shift+Tab away from paragraph indentation.
 - Save PDF now reviews the same fixed Letter page tree used by WebView2 output, including actual page boundaries, repeated translation attribution, and optional page numbers. The editor remains continuous.
+- A later reference now remains insertable after an earlier replacement shifts its document position; the live range is resolved at interaction time while the existing source-text and revision checks still reject genuinely stale lookups.
+- Windows X-close now uses one native path through Verseform's Save/Discard/Cancel gate. The desktop no longer registers a competing browser unload blocker that can strand a dirty WebView2 window.
 
 The immutable [0.2.0 pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.0) remains available as historical evidence; its assets are not replaced.
 
-## Field finding after publication
+## Session blockers corrected in 0.2.2
 
-Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position. The immutable public release remains available as its exact verified artifact; the correction is in source and must be delivered as a new verified patch before the affected task is retested.
+Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position, and can refuse to close a dirty Windows window from X. The immutable public release remains available as its exact verified artifact; `0.2.2` corrects both blockers and must pass the clean release gate before the affected tasks are retested.
 
 ## Keyboard
 
@@ -70,15 +72,16 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, Linux, and web distribution are outside this Beta.
 - Print uses the WebView2 browser-preview path. PDF export uses a fixed Letter layout with required scripture notices and an optional page number; printer availability and native destination permissions remain Windows responsibilities.
 - Independent-user validation remains pending until the session above is completed; automated and owner checks establish the candidate, not uncoached usability.
-- The public `0.2.1` build contains the shifted-later-reference insertion defect described above; do not use it as completion evidence for the independent-user gate.
+- The public `0.2.1` build contains the two session blockers described above; do not use it as completion evidence for the independent-user gate.
 
 ## Release evidence
 
 - The workflow archives the exact unsigned 0.1.0 installer as a non-latest [`v0.1.0` upgrade-baseline pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.1.0), then verifies its 4,197,262 bytes and SHA-256 `0caebf685ed7debfbb164b32a807871fb5d94026c471e1c03f23d2b025544001` before every patch gate. It came from Alpha run `33759181934` at commit `0c41ff0ad845533679611ccb4c5bf969ceaf5e0a`; future patch verification no longer depends on that expiring Actions artifact.
-- The 0.2.1 workflow runs the complete canonical gate, builds the unsigned NSIS installer, proves Alpha-to-patch profile/recovery/cache/document preservation, proves a separate clean offline install/uninstall lifecycle, audits advisories, and records version, commit, run, runner, installer SHA-256, unsigned status, and baseline provenance in `release-evidence.json`.
-- The canonical gate currently contains 43 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 39 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
+- The 0.2.2 workflow runs the complete canonical gate, builds the unsigned NSIS installer, proves Alpha-to-patch profile/recovery/cache/document preservation, proves a separate clean offline install/uninstall lifecycle, audits advisories, and records version, commit, run, runner, installer SHA-256, unsigned status, and baseline provenance in `release-evidence.json`.
+- The canonical gate currently contains 44 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 40 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
 - [Clean Windows run `33995590945`](https://github.com/SydFloyd/verseform/actions/runs/33995590945) passed at commit `1da671920bffa5c373640278281d7c213aa95336`: the durable-baseline archive check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its 30-day artifact `verseform-0.2.1-windows-beta` is ID `9978236778` with archive SHA-256 `66d76c9effd7230765051400f26a921a82e7d0d365f16878c04b83fa539b1856`.
 - The public [`v0.2.1` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) resolves to that exact commit. Its unsigned 4,309,127-byte installer has SHA-256 `888a771cc705b214115b50e32298ddb6c5c3dd01b7d25d04ebf75be6fbf8a80a`; a fresh public download returned the same size, digest, and `NotSigned` status. GitHub records `SHA256SUMS.txt` as `sha256:0e78bb4e92a76002ad43d82bd2b3faf96a7483e12c400081fbad2ea84fa633e8` and `release-evidence.json` as `sha256:d5712fa3a7efdd97de2590020044c1082bd8aaaa75fc994e8e8d4fc894dc22d9`. Historical 0.2.0 evidence remains in that release and version control.
+- Exact 0.2.2 run, artifact, installer, checksum, signature, and public re-download evidence remain pending until the clean Windows workflow succeeds.
 
 ## Reproduce the release gate
 

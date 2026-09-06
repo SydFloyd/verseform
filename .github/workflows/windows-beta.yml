@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  RELEASE_VERSION: 0.2.1
+  RELEASE_VERSION: 0.2.2
 
 jobs:
   archive-alpha-baseline:
@@ -220,7 +220,7 @@ jobs:
             $notes = @"
           Verseform $($env:RELEASE_VERSION) is an unsigned Windows Beta patch for ordinary writing with fast, local scripture-reference detection and one-click insertion.
 
-          This patch protects a current dirty draft before recovery restore, adds an intentional F6 keyboard route through detected references and the command deck, and makes PDF review show the same Letter pages, repeated attribution, and optional page numbers exported by WebView2.
+          This patch keeps later scripture references insertable after an earlier replacement shifts their document positions, while retaining exact source-text and revision freshness checks. It also gives Windows X-close one native Save/Discard/Cancel path instead of competing with a WebView2 unload block. The recovery, keyboard, and accurate PDF-review corrections from 0.2.1 remain included.
 
           The installer is not code-signed. Windows SmartScreen may display an unrecognized-publisher warning. Verseform remains local-first: it has no account, telemetry, crash upload, updater, or background GitHub connection. Only an uncached scripture preview or insertion contacts DBS; document prose is never sent.
 
