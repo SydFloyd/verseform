@@ -25,7 +25,7 @@ if (JSON.stringify(tauri.app.security.capabilities) !== '["main-capability"]') {
 if (
   capability.local !== true || JSON.stringify(capability.windows) !== '["main"]'
   || JSON.stringify(capability.platforms) !== '["windows"]'
-  || JSON.stringify(capability.permissions) !== '["core:default","core:window:allow-set-title"]'
+  || JSON.stringify(capability.permissions) !== '["core:default","core:window:allow-set-title","core:window:allow-destroy"]'
 ) fail("The reviewed capability boundary changed.");
 
 const packages = [];

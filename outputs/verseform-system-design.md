@@ -111,7 +111,7 @@ command or external event
 
 The browser harness exposes the frozen, versioned `window.__VERSEFORM_DIAGNOSTICS__` snapshot containing region phases, operation IDs, revision and hashes, effective translation, and enabled commands. It omits document text, arbitrary paths, provider payloads, and credentials and is absent from the production Tauri composition. A browser test verifies those properties. This replaces DOM inference for orchestration tests without becoming telemetry or persisted application state.
 
-Close has one platform owner. The browser harness uses `beforeunload` to protect dirty writing. The Windows composition instead prevents the initial Tauri close request, routes it through the kernel's shared Save/Discard/Cancel transition, and force-destroys the window only after the transition authorizes closing. It does not register the browser unload blocker in the desktop composition, because two independent guards can strand a dirty WebView2 window.
+Close has one platform owner. The browser harness uses `beforeunload` to protect dirty writing. The Windows composition instead prevents the initial Tauri close request, routes it through the kernel's shared Save/Discard/Cancel transition, and force-destroys the window only after the transition authorizes closing. The local, main-window-only Tauri capability explicitly allows that destroy command; a rejected destroy returns a typed failure notice and leaves dirty writing intact. The desktop composition does not register the browser unload blocker, because two independent guards can strand a dirty WebView2 window.
 
 The command registry and diagnostic schema are finite product contracts. Do not add dynamic registration, reflection, remote control, or production logging infrastructure.
 

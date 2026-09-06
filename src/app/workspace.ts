@@ -184,6 +184,7 @@ export type WorkspaceEvent =
   | { type: "document.opened"; operationId: number; opened: OpenedDocument; contentHash: string }
   | { type: "document.openCanceled"; operationId: number }
   | { type: "document.openFailed"; operationId: number; error: string }
+  | { type: "window.closeFailed"; error: string }
   | { type: "recovery.discard"; recovery: RecoverySnapshot }
   | { type: "scripture.catalogResult"; operationId: number; catalog: TranslationCatalog; preferred?: string }
   | { type: "scripture.catalogFailed"; operationId: number; error: string }
@@ -793,6 +794,8 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         { type: "library.listRecent", stamp: state.document.operation.stamp },
       ] };
     }
+    case "window.closeFailed":
+      return { state: notice(state, `Verseform could not close: ${event.error}`), effects: [] };
     case "recovery.discard":
       return { state: {
         ...state,

@@ -58,6 +58,7 @@ const latestContent: EditorNode = {
 
 type HarnessOptions = {
   kind?: RuntimeAdapters["kind"];
+  closeWindow?: () => Promise<void>;
   writeRecovery?: (snapshot: RecoverySnapshot) => Promise<void>;
   listRecoveries?: () => Promise<RecoverySnapshot[]>;
   discardRecovery?: (documentId: string) => Promise<void>;
@@ -81,7 +82,7 @@ function harness(options: HarnessOptions = {}) {
     closeRequested = handler;
     return () => { closeRequested = undefined; };
   });
-  const closeWindow = vi.fn(async () => undefined);
+  const closeWindow = vi.fn(options.closeWindow ?? (async () => undefined));
   const runtime: RuntimeAdapters = {
     kind: options.kind ?? "browser",
     scripture: {
@@ -186,6 +187,32 @@ describe("workspace controller", () => {
     browser.controller.start();
     expect(browser.onBeforeUnload).toHaveBeenCalledTimes(1);
     browser.controller.destroy();
+  });
+
+  test("a rejected native destroy stays recoverable and reports the close failure", async () => {
+    const desktop = harness({
+      kind: "tauri",
+      closeWindow: async () => { throw new Error("destroy permission denied"); },
+    });
+    desktop.controller.start();
+    desktop.controller.attachEditor(desktop.gateway);
+    await vi.waitFor(() => expect(desktop.onCloseRequested).toHaveBeenCalledTimes(1));
+
+    desktop.freeze(latestContent);
+    desktop.emit({
+      contentHash: contentHash(latestContent),
+      formatting: DEFAULT_FORMATTING,
+      documentChanged: true,
+    });
+    desktop.requestClose();
+    expect(desktop.controller.getState().overlay.type).toBe("confirm");
+    desktop.controller.resolveConfirmation("discard");
+    await vi.waitFor(() => expect(desktop.closeWindow).toHaveBeenCalledTimes(1));
+    expect(desktop.controller.getState().notice.message)
+      .toBe("Verseform could not close: destroy permission denied");
+    expect(desktop.controller.getState().document.currentHash)
+      .not.toBe(desktop.controller.getState().document.savedHash);
+    desktop.controller.destroy();
   });
 
   test("the fake scheduler cancels superseded recovery work and freezes only the latest editor state", async () => {

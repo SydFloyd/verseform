@@ -408,7 +408,10 @@ export class WorkspaceController {
         void this.enqueueRecoveryTask(effect.documentId, () => runtime.documents.discardRecovery(effect.documentId))
           .catch(() => undefined);
         return;
-      case "window.close": void runtime.window.close().catch(() => undefined); return;
+      case "window.close":
+        void runtime.window.close()
+          .catch((error: unknown) => this.send({ type: "window.closeFailed", error: errorMessage(error) }));
+        return;
       case "preference.saveTranslation":
         void runtime.preferences.setPreferredTranslation(effect.translationId)
           .then(() => this.send({ type: "scripture.preferenceSaved", operationId: effect.stamp.id, translationId: effect.translationId }))

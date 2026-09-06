@@ -5,5 +5,9 @@
   "local": true,
   "windows": ["main"],
   "platforms": ["windows"],
-  "permissions": ["core:default", "core:window:allow-set-title"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-title",
+    "core:window:allow-destroy"
+  ]
 }
