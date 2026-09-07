@@ -219,17 +219,33 @@ button[aria-disabled="true"] {
   white-space: nowrap;
 }
 
-.translation-trigger,
 .menu-trigger {
   border-color: transparent;
   background: transparent;
 }
 
 .translation-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   min-width: 3.5rem;
+  border-color: #c2b7a6;
   padding-right: 0.45rem;
   padding-left: 0.45rem;
+  background: #fbf8f1;
   font-weight: 650;
+}
+
+.translation-chevron {
+  width: 0.55rem;
+  height: 0.35rem;
+  overflow: visible;
+  fill: none;
+  stroke: #665c4c;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
 }
 
 .translation-popover {
@@ -342,14 +358,33 @@ button[aria-disabled="true"] {
   text-align: left;
 }
 
+.app-menu button[role="menuitemcheckbox"] > span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .app-menu button[role="menuitemcheckbox"] > span::before {
-  display: inline-block;
-  width: 1.2rem;
+  box-sizing: border-box;
+  flex: 0 0 0.85rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.35rem;
+  border: 1px solid #7a6e5d;
+  border-radius: 0.1rem;
   content: "";
 }
 
-.app-menu button[role="menuitemcheckbox"][aria-checked="true"] > span::before {
-  content: "✓";
+.app-menu button[role="menuitemcheckbox"][aria-checked="true"] > span::after {
+  position: absolute;
+  top: 50%;
+  left: 0.3rem;
+  width: 0.2rem;
+  height: 0.42rem;
+  border-right: 1.6px solid #4d3925;
+  border-bottom: 1.6px solid #4d3925;
+  content: "";
+  transform: translateY(-62%) rotate(45deg);
 }
 
 .app-menu kbd {
@@ -479,6 +514,14 @@ button[aria-disabled="true"] {
 .writing-surface [data-indent="6"] { margin-left: 9rem; }
 .writing-surface [data-indent="7"] { margin-left: 10.5rem; }
 .writing-surface [data-indent="8"] { margin-left: 12rem; }
+.writing-surface [data-first-line-indent="1"] { text-indent: 1.5rem; }
+.writing-surface [data-first-line-indent="2"] { text-indent: 3rem; }
+.writing-surface [data-first-line-indent="3"] { text-indent: 4.5rem; }
+.writing-surface [data-first-line-indent="4"] { text-indent: 6rem; }
+.writing-surface [data-first-line-indent="5"] { text-indent: 7.5rem; }
+.writing-surface [data-first-line-indent="6"] { text-indent: 9rem; }
+.writing-surface [data-first-line-indent="7"] { text-indent: 10.5rem; }
+.writing-surface [data-first-line-indent="8"] { text-indent: 12rem; }
 .writing-surface [data-line-height="1"] { line-height: 1; }
 .writing-surface [data-line-height="1.15"] { line-height: 1.15; }
 .writing-surface [data-line-height="1.5"] { line-height: 1.5; }
@@ -600,7 +643,8 @@ kbd {
 .confirm-dialog,
 .paragraph-dialog,
 .pdf-export-dialog,
-.credits-dialog {
+.credits-dialog,
+.web-help-dialog {
   width: min(28rem, calc(100vw - 2rem));
   max-height: calc(100vh - 2rem);
   overflow: auto;
@@ -614,7 +658,8 @@ kbd {
 .confirm-dialog h2,
 .paragraph-dialog h2,
 .pdf-export-dialog h2,
-.credits-dialog h2 { margin: 0; font: 500 1.55rem Garamond, Georgia, serif; }
+.credits-dialog h2,
+.web-help-dialog h2 { margin: 0; font: 500 1.55rem Garamond, Georgia, serif; }
 .confirm-dialog p,
 .paragraph-dialog p { color: #655b4c; }
 .confirm-dialog div { display: flex; justify-content: flex-end; gap: 0.5rem; }

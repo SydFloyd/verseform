@@ -734,6 +734,18 @@ describe("workspace kernel", () => {
     expect(commandForKeyStroke({ key: "F1", ctrl: false, meta: false, shift: false, alt: false })).toBe("help.credits");
   });
 
+  test("browser usage guidance is a kernel-owned web-only overlay", () => {
+    const webReady = step(createInitialWorkspace("web", web), { type: "editor.ready" }).state;
+    const opened = step(webReady, eventForCommand(webReady, "help.using")!);
+    expect(opened.state.overlay).toEqual({ type: "webHelp" });
+    expect(selectCommandEnabled(opened.state, "file.open")).toBe(false);
+    expect(step(opened.state, { type: "overlay.closeWebHelp" }).state.overlay).toEqual({ type: "none" });
+
+    const desktopReady = step(initial(), { type: "editor.ready" }).state;
+    expect(selectCommandEnabled(desktopReady, "help.using")).toBe(false);
+    expect(eventForCommand(desktopReady, "help.using")).toBeUndefined();
+  });
+
   test("a completed background recovery cannot overwrite a newer notice", () => {
     const edited = step(initial(), {
       type: "editor.observed", contentHash: contentHash(content), formatting: DEFAULT_FORMATTING, documentChanged: true,

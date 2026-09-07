@@ -273,6 +273,10 @@ export class WorkspaceController {
     this.send({ type: "overlay.closeCredits" });
   }
 
+  closeWebHelp(): void {
+    this.send({ type: "overlay.closeWebHelp" });
+  }
+
   openCreditLink(target: CreditLinkId): void {
     this.send({ type: "credits.openLink", target });
   }

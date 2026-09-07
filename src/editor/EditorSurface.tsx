@@ -45,7 +45,10 @@ const IndentationKeys = Extension.create({
   addKeyboardShortcuts() {
     return {
       Tab: () => {
-        dispatchInstruction(this.editor, { type: "format.indent", direction: 1 });
+        dispatchInstruction(this.editor, {
+          type: this.editor.isActive("listItem") ? "format.indent" : "format.firstLineIndent",
+          direction: 1,
+        });
         return true;
       },
       "Shift-Tab": () => {
@@ -186,6 +189,13 @@ function dispatchInstruction(editor: Editor, instruction: EditorInstruction): Ed
         const current = Number(editor.getAttributes(type).indent ?? 0);
         updateBlock(editor, { indent: Math.max(0, Math.min(8, current + instruction.direction)) });
       }
+      return;
+    }
+    case "format.firstLineIndent": {
+      const type = editor.isActive("heading") ? "heading" : "paragraph";
+      const current = Number(editor.getAttributes(type).firstLineIndent ?? 0);
+      const next = Math.max(0, Math.min(8, current + instruction.direction));
+      if (next !== current) updateBlock(editor, { firstLineIndent: next });
       return;
     }
     case "format.paragraph": updateBlock(editor, instruction.settings); return;

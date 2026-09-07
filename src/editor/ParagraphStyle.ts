@@ -24,6 +24,7 @@ export const ParagraphStyle = Extension.create({
         types: ["paragraph", "heading"],
         attributes: {
           indent: numericAttribute("indent", 0, 8),
+          firstLineIndent: numericAttribute("firstLineIndent", 0, 8),
           spaceBefore: numericAttribute("spaceBefore", 0, 72),
           spaceAfter: numericAttribute("spaceAfter", 0, 72),
           lineHeight: {

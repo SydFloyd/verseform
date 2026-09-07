@@ -13,6 +13,7 @@ import { PdfExportDialog } from "./PdfExportDialog";
 import { PaginatedOutput, type PaginationResult } from "./PaginatedOutput";
 import { TranslationPicker } from "./TranslationPicker";
 import { WebDocumentBar } from "./WebDocumentBar";
+import { WebHelpDialog } from "./WebHelpDialog";
 
 type MenuName = "file" | "edit" | "help";
 
@@ -129,6 +130,18 @@ function AlignmentIcon({ alignment }: { alignment: Alignment }) {
   </svg>;
 }
 
+function ParagraphIndentIcon({ direction }: { direction: 1 | -1 }) {
+  const arrow = direction > 0
+    ? "M1.5 10h5m-2.5-2.5L6.5 10 4 12.5"
+    : "M6.5 10h-5M4 7.5 1.5 10 4 12.5";
+  return <svg className="toolbar-icon paragraph-indent-icon" viewBox="0 0 20 20" aria-hidden="true">
+    <path d={arrow} />
+    <line x1="9" x2="18" y1="4" y2="4" />
+    <line x1="9" x2="18" y1="10" y2="10" />
+    <line x1="9" x2="18" y1="16" y2="16" />
+  </svg>;
+}
+
 function ListIcon({ ordered }: { ordered?: boolean }) {
   return <svg className="toolbar-icon" viewBox="0 0 20 20" aria-hidden="true">
     {ordered
@@ -189,6 +202,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const paragraphReturnFocus = useRef<HTMLElement | null>(null);
   const creditsDialogRef = useRef<HTMLElement | null>(null);
   const creditsReturnFocus = useRef<HTMLElement | null>(null);
+  const webHelpDialogRef = useRef<HTMLElement | null>(null);
   const pdfDialogRef = useRef<HTMLElement | null>(null);
   const pdfReturnFocus = useRef<HTMLElement | null>(null);
   const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -242,6 +256,10 @@ export function App({ controller }: { controller: WorkspaceController }) {
       creditsReturnFocus.current = null;
     });
   };
+  const closeWebHelp = () => {
+    controller.closeWebHelp();
+    requestAnimationFrame(() => helpMenuButtonRef.current?.focus());
+  };
   const cancelPdfExport = () => {
     controller.cancelPdfExport();
     requestAnimationFrame(() => {
@@ -257,6 +275,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
     ? view.overlay.action
     : undefined;
   const credits = view.overlay.type === "credits" ? view.overlay : undefined;
+  const webHelp = view.overlay.type === "webHelp";
   const pdfExport = view.overlay.type === "pdfExport" ? view.overlay : undefined;
   const currentPreviewLayout = previewLayout?.snapshot === view.printSnapshot ? previewLayout : undefined;
   const paginationError = currentPreviewLayout?.error
@@ -278,7 +297,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
       <a className="skip-link" href="#document-editor" onClick={(event) => {
         event.preventDefault(); controller.focusEditor();
       }}>Skip to document editor</a>
-      <main className="app-shell" inert={confirming || Boolean(paragraph) || Boolean(pdfExport) || Boolean(credits) ? true : undefined}>
+      <main className="app-shell" inert={confirming || Boolean(paragraph) || Boolean(pdfExport) || Boolean(credits) || webHelp ? true : undefined}>
         <h1 className="sr-only">Verseform document editor</h1>
 
         {recovery ? <section className="recovery-banner" aria-label="Recovery available">
@@ -299,7 +318,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
           if (event.shiftKey) controller.focusReference("lastReference");
           else controller.focusEditor();
         }}>
-        {web ? <WebDocumentBar view={view} canDownload={controller.isEnabled("file.download")} onDownload={() => run("file.download")} /> : null}
+        {web ? <WebDocumentBar view={view} /> : null}
         <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
           <div className="menu-strip" role="group" aria-label="Application menus">
           <ToolbarMenu id="file-menu" label="File" open={openMenu === "file"} buttonRef={fileMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "file" : undefined)}>
@@ -328,6 +347,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
             }}>{label("edit.paragraph")}…</MenuItem>
           </ToolbarMenu>
           <ToolbarMenu id="help-menu" label="Help" open={openMenu === "help"} buttonRef={helpMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "help" : undefined)}>
+            {web ? <><MenuItem disabled={!controller.isEnabled("help.using")} onClick={() => run("help.using")}>{label("help.using")}</MenuItem><div className="menu-separator" role="separator" /></> : null}
             <MenuItem shortcut={shortcut("help.credits")} disabled={!controller.isEnabled("help.credits")} onClick={() => {
               creditsReturnFocus.current = helpMenuButtonRef.current;
               run("help.credits");
@@ -379,8 +399,8 @@ export function App({ controller }: { controller: WorkspaceController }) {
           </div>
           <div className="format-group" role="group" aria-label="Alignment and indentation">
             {(["left", "center", "right", "justify"] as Alignment[]).map((alignment) => <ToolbarButton key={alignment} title={alignment === "justify" ? "Justify" : `Align ${alignment}`} active={formatting.alignment === alignment} command={() => run("format.align", alignment)}><AlignmentIcon alignment={alignment} /></ToolbarButton>)}
-            <ToolbarButton title={commandTitle("format.outdent")} command={() => run("format.outdent")}>←</ToolbarButton>
-            <ToolbarButton title={commandTitle("format.indent")} command={() => run("format.indent")}>→</ToolbarButton>
+            <ToolbarButton title={commandTitle("format.outdent")} command={() => run("format.outdent")}><ParagraphIndentIcon direction={-1} /></ToolbarButton>
+            <ToolbarButton title={commandTitle("format.indent")} command={() => run("format.indent")}><ParagraphIndentIcon direction={1} /></ToolbarButton>
           </div>
         </nav>
         </header>
@@ -451,6 +471,13 @@ export function App({ controller }: { controller: WorkspaceController }) {
         onClose={closeCredits}
         onOpenLink={(target) => controller.openCreditLink(target)}
         onKeyDown={(event) => trapFocus(event, creditsDialogRef.current, closeCredits)}
+      /> : null}
+
+      {webHelp ? <WebHelpDialog
+        view={view}
+        dialogRef={webHelpDialogRef}
+        onClose={closeWebHelp}
+        onKeyDown={(event) => trapFocus(event, webHelpDialogRef.current, closeWebHelp)}
       /> : null}
 
       {paragraph ? <div className="modal-backdrop"><section ref={paragraphDialogRef} className="paragraph-dialog" role="dialog" aria-modal="true" aria-labelledby="paragraph-heading" aria-describedby="paragraph-description" onKeyDown={(event) => trapFocus(event, paragraphDialogRef.current, closeParagraph)}>

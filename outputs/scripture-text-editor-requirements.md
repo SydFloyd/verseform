@@ -22,21 +22,21 @@ The editor must provide:
 - Bulleted and numbered lists.
 - Superscript and subscript.
 - Text highlight and font color.
-- Standard indentation. Tab and Shift+Tab change the current paragraph or list nesting by exactly one level without moving focus out of the editor.
+- Standard indentation. In ordinary text, Tab increases only the current paragraph's first-line indent by one level; Shift+Tab decreases its full left indent by one level. Dedicated toolbar buttons increase or decrease the full paragraph indent and use paragraph-line icons that distinguish them from first-line Tab behavior. In lists, Tab and Shift+Tab change nesting by one level. All paths keep focus in the editor.
 - Left, center, right, and justified alignment.
 - Line spacing and paragraph spacing before and after.
 - Hyperlinks.
 - Undo/redo, find/replace, spellcheck, clean paste, and common keyboard shortcuts.
-- File actions and output settings live in a familiar File menu. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested. The menu and formatting deck remains available while the document scrolls.
+- File actions and output settings live in a familiar File menu; the browser's portable document download appears there rather than as a duplicate top-level action. Undo/redo and paragraph spacing live in Edit, with find/replace hidden until requested. Browser usage guidance and Credits & Licenses live in Help. The menu and formatting deck remains available while the document scrolls.
 - Accessible controls, visible focus states, and keyboard operation for core actions.
 - The native window title owns the visible Verseform identity, document name, and unsaved indicator. The document view does not repeat a visible Verseform heading above the controls.
-- Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing. Command buttons and the File/Edit/Help menu strip remain visually quiet at rest; hover, keyboard focus, and active state reveal their boundaries.
+- Controls use a simple flat visual language, compact spacing, familiar icons, stable grouping, and no layout shift during ordinary editing. Command buttons and the File/Edit/Help menu strip remain visually quiet at rest; hover, keyboard focus, and active state reveal their boundaries. The collapsed scripture selector retains a subtle border and disclosure arrow, and unchecked menu settings show an empty checkbox as well as accessible checked state.
 
 The editor will not initially include editable headers or footers, margin controls, or DOCX support.
 
 ## Help, credits, and licenses
 
-- A Help menu exposes a local **Credits & Licenses** view without interrupting or changing the document.
+- A Help menu exposes a local **Credits & Licenses** view without interrupting or changing the document. In the browser edition it also exposes **Using Verseform** guidance that previously occupied the document bar.
 - The view identifies the installed Verseform version; thanks and credits Digital Bible Society for scripture access; identifies the bundled World English Bible and its provenance; and exposes applicable translation and third-party software notices.
 - Translation notices come from the same normalized metadata used by citations and print/PDF output. Provider text is rendered as plain text and never as remote HTML.
 - Viewing credits requires no provider request. Any external website action leaves the privileged webview through a narrow allowlisted adapter and must not imply that DBS endorses Verseform.

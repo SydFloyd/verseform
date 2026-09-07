@@ -6,7 +6,7 @@ export type WorkspaceCommandId =
   | "file.new" | "file.open" | "file.openRecent" | "file.save" | "file.saveAs"
   | "file.pageNumbers" | "file.print" | "file.savePdf" | "file.download"
   | "edit.undo" | "edit.redo" | "edit.find" | "edit.paragraph"
-  | "help.credits"
+  | "help.using" | "help.credits"
   | "format.bold" | "format.italic" | "format.underline" | "format.strike"
   | "format.subscript" | "format.superscript" | "format.fontFamily" | "format.fontSize"
   | "format.color" | "format.highlight" | "format.link" | "format.bulletList"
@@ -33,6 +33,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: "edit.redo", label: "Redo", shortcut: "Ctrl+Shift+Z" },
   { id: "edit.find", label: "Find / Replace", shortcut: "Ctrl+F", globalShortcut: true },
   { id: "edit.paragraph", label: "Paragraph" },
+  { id: "help.using", label: "Using Verseform" },
   { id: "help.credits", label: "Credits & Licenses", shortcut: "F1", globalShortcut: true },
   { id: "format.bold", label: "Bold", shortcut: "Ctrl+B" },
   { id: "format.italic", label: "Italic", shortcut: "Ctrl+I" },
@@ -48,8 +49,8 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: "format.bulletList", label: "Bullet list" },
   { id: "format.orderedList", label: "Numbered list" },
   { id: "format.align", label: "Alignment" },
-  { id: "format.outdent", label: "Outdent" },
-  { id: "format.indent", label: "Indent" },
+  { id: "format.outdent", label: "Decrease paragraph indent" },
+  { id: "format.indent", label: "Increase paragraph indent" },
 ] as const;
 
 export const COMMAND_IDS = COMMANDS.map((command) => command.id);
@@ -82,6 +83,7 @@ export function eventForCommand(
     case "edit.redo": return { type: "editor.command", instruction: { type: "history.redo" } };
     case "edit.find": return { type: "overlay.openFind" };
     case "edit.paragraph": return { type: "overlay.openParagraph" };
+    case "help.using": return { type: "overlay.openWebHelp" };
     case "help.credits": return { type: "overlay.openCredits" };
     case "format.bold": return { type: "editor.command", instruction: { type: "format.toggle", mark: "bold" } };
     case "format.italic": return { type: "editor.command", instruction: { type: "format.toggle", mark: "italic" } };

@@ -82,6 +82,7 @@ export type EditorInstruction =
   | { type: "format.list"; ordered: boolean }
   | { type: "format.align"; alignment: Alignment }
   | { type: "format.indent"; direction: 1 | -1 }
+  | { type: "format.firstLineIndent"; direction: 1 | -1 }
   | { type: "format.paragraph"; settings: ParagraphSettings }
   | { type: "find.set"; query: string; index: number }
   | { type: "find.replace"; query: string; replacement: string; index: number }

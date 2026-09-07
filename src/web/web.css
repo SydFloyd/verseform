@@ -6,15 +6,15 @@
 .web-document-name strong { font-size: .875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .web-document-name > span { color: var(--muted); font-size: .75rem; }
 .web-document-actions { display: flex; align-items: center; gap: .55rem; }
-.web-document-actions > button, .windows-download, .web-help > summary { font-size: .875rem; }
-.windows-download { color: var(--accent); text-underline-offset: .2em; padding: .4rem .2rem; }
-.web-help { position: relative; }
-.web-help > summary { cursor: pointer; padding: .4rem .25rem; border-radius: .25rem; }
-.web-help > summary:focus-visible, .web-document-bar a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.web-help > div { position: absolute; z-index: 25; right: 0; top: calc(100% + .75rem); width: min(29rem, calc(100vw - 2rem)); max-height: calc(100dvh - 8rem); overflow-y: auto; background: var(--paper); padding: 1.4rem; border: 1px solid var(--border-strong); border-radius: .5rem; box-shadow: 0 .6rem 2rem #211d1620; font-size: 1rem; line-height: 1.5; }
-.web-help h2 { font: 1.4rem Georgia, serif; margin: 0 0 .75rem; }
-.web-help h3 { font-size: 1rem; margin-top: 1.3rem; }
-.web-help a { color: var(--accent); }
+.windows-download { color: var(--accent); text-underline-offset: .2em; padding: .4rem .2rem; font-size: .875rem; }
+.web-document-bar a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.web-help-dialog { width: min(38rem, calc(100vw - 2rem)); }
+.web-help-content { margin-top: .9rem; color: #51483a; line-height: 1.5; }
+.web-help-content h3 { margin: 1.2rem 0 .35rem; color: #3c3327; font-size: 1rem; }
+.web-help-content h3:first-child { margin-top: 0; }
+.web-help-content p { margin: 0 0 .75rem; }
+.web-help-content a { color: var(--accent); }
+.web-help-dialog > .dialog-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 .web-offline-state { display: inline-block; font-size: .75rem; color: var(--muted); margin-right: .75rem; }
 .web-print-guide { display: none; }
 @media print {
@@ -26,6 +26,5 @@
 }
 @media (max-width: 600px) {
   .web-document-actions { width: 100%; flex-wrap: wrap; justify-content: space-between; }
-  .web-help > div { position: fixed; right: 1rem; top: 8rem; }
   .web-document-name { text-align: right; }
 }

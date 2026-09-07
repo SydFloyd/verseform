@@ -115,6 +115,8 @@ test("shows the translation abbreviation at rest and searchable full titles when
   const trigger = page.getByRole("button", { name: /^Scripture translation:/ });
   await expect(trigger).toHaveText("NASB");
   await expect(trigger).not.toContainText("New American Standard Bible");
+  await expect(trigger.locator(".translation-chevron")).toHaveCount(1);
+  await expect(trigger).toHaveCSS("border-top-color", "rgb(194, 183, 166)");
   await trigger.click();
 
   const search = page.getByRole("combobox", { name: "Search translations" });

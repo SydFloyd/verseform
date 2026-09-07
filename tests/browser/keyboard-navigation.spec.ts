@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-test("keyboard-only writing reaches references, menus, translation, and returns without changing Tab indentation", async ({ page }) => {
+test("keyboard-only writing reaches references, menus, translation, and returns with first-line Tab indentation", async ({ page }) => {
   await page.goto("/");
 
   await page.keyboard.press("Tab");
@@ -83,8 +83,10 @@ test("keyboard-only writing reaches references, menus, translation, and returns 
   await expect(editor).toBeFocused();
   const paragraph = editor.locator("p");
   await page.keyboard.press("Tab");
-  await expect(paragraph).toHaveAttribute("data-indent", "1");
+  await expect(paragraph).toHaveAttribute("data-first-line-indent", "1");
+  await expect(paragraph).not.toHaveAttribute("data-indent");
   await page.keyboard.press("Shift+Tab");
-  await expect(paragraph).not.toHaveAttribute("data-indent", "1");
+  await expect(paragraph).toHaveAttribute("data-first-line-indent", "1");
+  await expect(paragraph).not.toHaveAttribute("data-indent");
   await expect(editor).toBeFocused();
 });

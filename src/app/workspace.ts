@@ -58,6 +58,7 @@ export type WorkspaceOverlay =
   | { type: "find"; query: string; replacement: string; index: number; count: number }
   | { type: "paragraph"; draft: ParagraphSettings }
   | { type: "pdfExport" }
+  | { type: "webHelp" }
   | { type: "credits"; link?: { target: CreditLinkId; stamp: OperationStamp }; error?: string };
 
 type TimerOperation = { phase: "scheduled" | "capturing" | "writing"; stamp: OperationStamp };
@@ -230,6 +231,8 @@ export type WorkspaceEvent =
   | { type: "overlay.closeParagraph" }
   | { type: "overlay.openCredits" }
   | { type: "overlay.closeCredits" }
+  | { type: "overlay.openWebHelp" }
+  | { type: "overlay.closeWebHelp" }
   | { type: "credits.openLink"; target: CreditLinkId }
   | { type: "credits.linkOpened"; operationId: number }
   | { type: "credits.linkFailed"; operationId: number; error: string }
@@ -1137,6 +1140,20 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         : { state, effects: [] };
     case "overlay.closeParagraph":
       return state.overlay.type === "paragraph"
+        ? { state: { ...state, overlay: { type: "none" } }, effects: [] }
+        : { state, effects: [] };
+    case "overlay.openWebHelp":
+      if (state.kind !== "web" || (state.overlay.type !== "none" && state.overlay.type !== "find")) {
+        return { state, effects: [] };
+      }
+      return {
+        state: { ...state, overlay: { type: "webHelp" } },
+        effects: state.overlay.type === "find"
+          ? [{ type: "editor.dispatch", instruction: { type: "find.set", query: "", index: 0 } }]
+          : [],
+      };
+    case "overlay.closeWebHelp":
+      return state.overlay.type === "webHelp"
         ? { state: { ...state, overlay: { type: "none" } }, effects: [] }
         : { state, effects: [] };
     case "overlay.openCredits":

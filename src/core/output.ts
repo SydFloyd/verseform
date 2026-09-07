@@ -119,6 +119,8 @@ function blockStyle(node: EditorNode): string {
   }
   const indent = safeNumber(node.attrs?.indent, 0, 8);
   if (indent) styles.push(`margin-left: ${indent * 1.5}rem;`);
+  const firstLineIndent = safeNumber(node.attrs?.firstLineIndent, 0, 8);
+  if (firstLineIndent) styles.push(`text-indent: ${firstLineIndent * 1.5}rem;`);
   const lineHeight = node.attrs?.lineHeight;
   if (typeof lineHeight === "string" && allowedLineHeights.has(lineHeight)) {
     styles.push(`line-height: ${lineHeight};`);

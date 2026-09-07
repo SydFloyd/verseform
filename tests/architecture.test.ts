@@ -28,7 +28,7 @@ describe("application boundaries", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining([
       "file.new", "file.open", "file.save", "file.print", "edit.find", "edit.paragraph",
-      "help.credits", "format.bold", "format.align", "format.link",
+      "help.using", "help.credits", "format.bold", "format.align", "format.link",
     ]));
   });
 });

@@ -19,7 +19,21 @@ test("presents familiar File and Edit menus with hidden secondary dialogs", asyn
   await expect(page.getByRole("menuitem", { name: /^Save As Ctrl\+Shift\+S$/ })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /^Print\b/ })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /^Save PDF$/ })).toBeVisible();
-  await expect(page.getByRole("menuitemcheckbox", { name: "Page numbers" })).toBeVisible();
+  let pageNumbers = page.getByRole("menuitemcheckbox", { name: "Page numbers" });
+  await expect(pageNumbers).toBeVisible();
+  await expect.poll(() => pageNumbers.locator("span").evaluate(
+    (element) => getComputedStyle(element, "::before").borderTopStyle,
+  )).toBe("solid");
+  await expect.poll(() => pageNumbers.locator("span").evaluate(
+    (element) => getComputedStyle(element, "::after").borderRightStyle,
+  )).toBe("none");
+  await pageNumbers.click();
+  await page.getByRole("button", { name: "File", exact: true }).click();
+  pageNumbers = page.getByRole("menuitemcheckbox", { name: "Page numbers" });
+  await expect(pageNumbers).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => pageNumbers.locator("span").evaluate(
+    (element) => getComputedStyle(element, "::after").borderRightStyle,
+  )).toBe("solid");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu", { name: "File menu" })).toHaveCount(0);
 
@@ -60,6 +74,7 @@ test("keeps formatting selectors and the window title synchronized with the docu
   for (const label of [
     "Align left", "Align center", "Align right", "Justify",
     "Bullet list", "Numbered list", "Add or edit link",
+    "Decrease paragraph indent", "Increase paragraph indent",
   ]) {
     await expect(page.getByRole("button", { name: label }).locator("svg")).toHaveCount(1);
   }

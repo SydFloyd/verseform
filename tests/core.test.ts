@@ -169,7 +169,7 @@ describe("portable documents and output", () => {
     for (const fragment of [
       "<strong>", "<em>", "<u>", "<s>", "<sub>", "<sup>",
       "font-family: 'Georgia'", "font-size: 18pt", "color: #123456",
-      "background-color: #fff0a8", "text-align: justify", "margin-left: 3rem",
+      "background-color: #fff0a8", "text-align: justify", "margin-left: 3rem", "text-indent: 1.5rem",
       "line-height: 2", "margin-top: 8pt", "margin-bottom: 12pt",
       '<a href="https://example.com">', "<ul>", "<ol>", "<cite",
     ]) expect(html).toContain(fragment);

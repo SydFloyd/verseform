@@ -18,7 +18,7 @@ export function selectActiveTranslation(state: WorkspaceState): Translation {
 }
 
 export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCommandId): boolean {
-  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph" || state.overlay.type === "pdfExport" || state.overlay.type === "credits") return false;
+  if (state.overlay.type === "confirm" || state.overlay.type === "paragraph" || state.overlay.type === "pdfExport" || state.overlay.type === "credits" || state.overlay.type === "webHelp") return false;
   if (command === "file.new" || command === "file.open" || command === "file.openRecent") {
     return state.editorReady;
   }
@@ -28,6 +28,7 @@ export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCo
     return state.editorReady && state.output.phase === "idle";
   }
   if (command === "file.download") return state.kind === "web" && state.editorReady && !state.persistence.save;
+  if (command === "help.using") return state.kind === "web" && state.editorReady;
   if (command === "file.save" || command === "file.saveAs") {
     return state.editorReady && !state.persistence.save;
   }

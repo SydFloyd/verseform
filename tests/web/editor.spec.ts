@@ -16,7 +16,7 @@ async function firstDraft(page: Page) {
 }
 async function download(page: Page) {
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download document", exact: true }).click();
+  await chooseMenuItem(page, "File", /^Download \.verseform$/);
   const file = await pending;
   return { file, document: parseVerseformDocument(await readFile((await file.path())!, "utf8")) };
 }
@@ -225,12 +225,14 @@ test("web controls remain readable and keyboard reachable on a smaller desktop",
   await page.keyboard.press("Enter");
   await expect(page.locator(".scripture-citation")).toHaveCount(1);
   await saved(page);
-  await page.getByText("Using Verseform", { exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Your writing stays here" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download document", exact: true })).toHaveCount(0);
+  await chooseMenuItem(page, "Help", /^Using Verseform$/);
+  const help = page.getByRole("dialog", { name: "Using Verseform" });
+  await expect(help.getByRole("heading", { name: "Your writing stays here" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
   await page.screenshot({ path: "artifacts/vfm-180-web-help.png" });
-  await page.getByText("Using Verseform", { exact: true }).click();
+  await help.getByRole("button", { name: "Done" }).click();
   await page.screenshot({ path: "artifacts/vfm-180-web-editor.png" });
   await testInfo.attach("Web editor", { path: "artifacts/vfm-180-web-editor.png", contentType: "image/png" });
 });

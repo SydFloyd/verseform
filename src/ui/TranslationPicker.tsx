@@ -113,7 +113,7 @@ export function TranslationPicker({
           setOpen(true);
         }
       }}
-    >{selected?.citationLabel ?? "—"}</button>
+    ><span>{selected?.citationLabel ?? "—"}</span><svg className="translation-chevron" viewBox="0 0 10 6" aria-hidden="true"><path d="m1 1 4 4 4-4" /></svg></button>
     {open ? <div className="translation-popover">
       <label className="translation-search-label" htmlFor="translation-search">Find a translation</label>
       <input

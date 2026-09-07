@@ -10,7 +10,7 @@
     "content": [
       {
         "type": "paragraph",
-        "attrs": { "textAlign": "justify", "indent": 2, "lineHeight": "2", "spaceBefore": 8, "spaceAfter": 12 },
+        "attrs": { "textAlign": "justify", "indent": 2, "firstLineIndent": 1, "lineHeight": "2", "spaceBefore": 8, "spaceAfter": 12 },
         "content": [
           { "type": "text", "text": "Bold", "marks": [{ "type": "bold" }] },
           { "type": "text", "text": " italic", "marks": [{ "type": "italic" }] },
