@@ -1,8 +1,8 @@
-# Verseform 0.2.2 Windows Beta candidate
+# Verseform 0.2.2 Windows Beta release record
 
 ## Corrected patch release
 
-The clean Windows workflow will publish Verseform 0.2.2 only after the exact commit passes the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release will attach `Verseform_0.2.2_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
+The clean Windows workflow published Verseform 0.2.2 only after the exact commit passed the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release attaches `Verseform_0.2.2_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
 
 This remains an unsigned field Beta, not a stable `1.0` or verified-publisher release. Windows SmartScreen may show an unrecognized-publisher warning. Optional defect and daily-use reports belong in the [privacy-constrained Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml); never attach private writing or Verseform document, recovery, or cache files.
 
@@ -26,7 +26,7 @@ The immutable [0.2.0 pre-release](https://github.com/SydFloyd/verseform/releases
 
 ## Session blockers corrected in 0.2.2
 
-Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position, and can refuse to close a dirty Windows window from X. The immutable public release remains available as its exact verified artifact; the revised local `0.2.2` candidate has passed targeted native retesting for both blockers and still requires the clean release gate before publication.
+Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position, and can refuse to close a dirty Windows window from X. The immutable public release remains available as its exact verified artifact; the revised `0.2.2` build passed targeted native retesting for both blockers and the clean release gate before publication.
 
 ## Keyboard
 
@@ -72,7 +72,7 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, Linux, and web distribution are outside this Beta.
 - Print uses the WebView2 browser-preview path. PDF export uses a fixed Letter layout with required scripture notices and an optional page number; printer availability and native destination permissions remain Windows responsibilities.
 - Independent-user validation remains pending until the session above is completed; automated and owner checks establish the candidate, not uncoached usability.
-- The public `0.2.1` build contains the two session blockers described above; do not use it as completion evidence for the independent-user gate.
+- The public `0.2.1` build contains the two session blockers described above; use `0.2.2` for the remainder of the independent-user gate.
 
 ## Release evidence
 
@@ -81,7 +81,8 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The canonical gate currently contains 45 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 40 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
 - [Clean Windows run `33995590945`](https://github.com/SydFloyd/verseform/actions/runs/33995590945) passed at commit `1da671920bffa5c373640278281d7c213aa95336`: the durable-baseline archive check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its 30-day artifact `verseform-0.2.1-windows-beta` is ID `9978236778` with archive SHA-256 `66d76c9effd7230765051400f26a921a82e7d0d365f16878c04b83fa539b1856`.
 - The public [`v0.2.1` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) resolves to that exact commit. Its unsigned 4,309,127-byte installer has SHA-256 `888a771cc705b214115b50e32298ddb6c5c3dd01b7d25d04ebf75be6fbf8a80a`; a fresh public download returned the same size, digest, and `NotSigned` status. GitHub records `SHA256SUMS.txt` as `sha256:0e78bb4e92a76002ad43d82bd2b3faf96a7483e12c400081fbad2ea84fa633e8` and `release-evidence.json` as `sha256:d5712fa3a7efdd97de2590020044c1082bd8aaaa75fc994e8e8d4fc894dc22d9`. Historical 0.2.0 evidence remains in that release and version control.
-- Exact 0.2.2 run, artifact, installer, checksum, signature, and public re-download evidence remain pending until the clean Windows workflow succeeds.
+- [Clean Windows run `34072828527`](https://github.com/SydFloyd/verseform/actions/runs/34072828527) passed at commit `7344480c5d32228ecc4050feaf02f1df9443338e`: the durable Alpha check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its artifact `verseform-0.2.2-windows-beta` is ID `10001327514`, retained through `2026-10-07T01:39:52Z`, with archive SHA-256 `780332fe7a36e3566f69ae535ec006b6bc958eddaab0e1d9c455237386b2150c`.
+- The public [`v0.2.2` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.2) targets that exact commit. Its unsigned 4,310,375-byte installer has SHA-256 `b8f41273a63e28f3d5d979d6faa164c7861f033cf39c41dac4eda0dba7595eb4`; a fresh public download returned the same size, digest, and `NotSigned` status, and the attached checksum and evidence agree. GitHub records `SHA256SUMS.txt` as `sha256:f0b6cdc5ef1c03c5c0f6fd40d269168164f541230d73ffb2465822f4613f8b61` and `release-evidence.json` as `sha256:1b47eb2b0dc43c6f722df1d405075ae715750f44ffe4d7e701fbb26e5eb3f539`.
 
 ## Reproduce the release gate
 
