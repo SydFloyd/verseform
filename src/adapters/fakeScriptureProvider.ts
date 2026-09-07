@@ -1,6 +1,6 @@
 import type { Passage, ScriptureProvider, TranslationCatalog } from "../app/ports";
 import { WEB_TRANSLATION } from "./webScriptureProvider";
-import type { NormalizedReference } from "../core/reference";
+import { formatReference, passageSegments, type NormalizedReference } from "../core/reference";
 
 const john316 =
   "For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.";
@@ -39,6 +39,7 @@ export class FakeScriptureProvider implements ScriptureProvider {
     translationId: string,
     signal?: AbortSignal,
   ): Promise<Passage> {
+    passageSegments(reference, WEB_TRANSLATION.canon);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("verseform:fake-provider-request"));
     }
@@ -47,8 +48,8 @@ export class FakeScriptureProvider implements ScriptureProvider {
       reference.bookId === "JHN" &&
       reference.chapter === 3 &&
       reference.verseStart === 16 &&
-      reference.verseEnd === undefined;
-    const display = `${reference.bookName} ${reference.chapter}:${reference.verseStart}${reference.verseEnd === undefined ? "" : `-${reference.verseEnd}`}`;
+      reference.verseEnd === undefined && !reference.additionalRanges?.length;
+    const display = formatReference(reference);
 
     return {
       reference,

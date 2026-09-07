@@ -194,6 +194,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
   const editMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const helpMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousOverlay = useRef(view.overlay.type);
+  const passagePreviewRef = useRef<HTMLElement | null>(null);
   const [previewLayout, setPreviewLayout] = useState<{
     snapshot: PrintSnapshot;
     result?: PaginationResult;
@@ -398,7 +399,11 @@ export function App({ controller }: { controller: WorkspaceController }) {
           onGateway={(gateway) => controller.attachEditor(gateway)}
           onLimit={() => controller.send({ type: "editor.limit" })}
           onReferenceHover={(candidate: PositionedReference, position) => controller.referenceHover(candidate, position)}
-          onReferenceLeave={() => controller.referenceLeave()}
+          onReferenceLeave={(nextTarget) => {
+            if (nextTarget instanceof Node && passagePreviewRef.current?.contains(nextTarget)) return;
+            controller.referenceLeave();
+          }}
+          onPreviewScroll={(direction) => passagePreviewRef.current?.scrollBy({ top: direction * 240 })}
           onReferenceClick={(candidate: PositionedValidReference) => controller.referenceClick(candidate)}
           onFocusCommandDeck={() => {
             setOpenMenu(undefined);
@@ -407,7 +412,15 @@ export function App({ controller }: { controller: WorkspaceController }) {
         /></section>
         <p className="status-line" role="status" aria-live="polite">{view.status}</p>
 
-        {view.preview ? <aside className="passage-preview" role="tooltip" aria-live="polite" aria-atomic="true" data-reference-kind={view.preview.candidate.kind} style={{ top: view.preview.top, left: view.preview.left }}><strong>{view.preview.candidate.display}</strong>{view.preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{view.preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{view.preview.loading ? <p>Loading preview…</p> : null}{view.preview.passage ? <><p>{view.preview.passage.text}</p><small>{view.preview.passage.translationName}{view.preview.passage.cached ? " · local cache" : ""}</small>{view.preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {view.preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{view.preview.error ? <p>{view.preview.error}</p> : null}</aside> : null}
+        {view.preview ? <aside ref={passagePreviewRef} className="passage-preview" role="tooltip" tabIndex={0}
+          onMouseLeave={() => controller.referenceLeave()}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              controller.referenceLeave();
+              controller.focusEditor();
+            }
+          }} aria-live="polite" aria-atomic="true" data-reference-kind={view.preview.candidate.kind} style={{ top: view.preview.top, left: view.preview.left }}><strong>{view.preview.candidate.display}</strong>{view.preview.candidate.kind === "invalid" ? <><p className="invalid-reference-message">{view.preview.candidate.issue.message}</p><small>Nothing will be inserted.</small></> : null}{view.preview.loading ? <p>Loading preview…</p> : null}{view.preview.passage ? <><p>{view.preview.passage.text}</p><small>{view.preview.passage.translationName}{view.preview.passage.cached ? " · local cache" : ""}</small>{view.preview.passage.fallbackFrom ? <small className="fallback-message">Using bundled WEB because {view.preview.passage.fallbackFrom.name} is unavailable.</small> : null}</> : null}{view.preview.error ? <p>{view.preview.error}</p> : null}</aside> : null}
       </main>
 
       {pdfExport && view.printSnapshot ? <PdfExportDialog

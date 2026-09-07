@@ -264,7 +264,8 @@ export type EditorSurfaceProps = {
   onGateway(gateway: EditorGateway | undefined): void;
   onLimit(): void;
   onReferenceHover(candidate: PositionedReference, position: { top: number; left: number }): void;
-  onReferenceLeave(): void;
+  onReferenceLeave(nextTarget?: EventTarget | null): void;
+  onPreviewScroll(direction: 1 | -1): void;
   onReferenceClick(candidate: PositionedValidReference): void;
   onFocusCommandDeck(): void;
   initialCanon: CanonMetadata;
@@ -289,10 +290,11 @@ export function EditorSurface(props: EditorSurfaceProps) {
       DocumentLimits.configure({ onLimit: () => callbacks.current.onLimit() }),
       ReferenceDecorations.configure({
         onHover: (candidate, rect) => callbacks.current.onReferenceHover(candidate, {
-          top: Math.max(12, Math.min(rect.bottom + 10, window.innerHeight - 210)),
+          top: rect.bottom + 312 <= window.innerHeight ? rect.bottom : Math.max(12, rect.top - 300),
           left: Math.max(12, Math.min(rect.left, window.innerWidth - 390)),
         }),
-        onLeave: () => callbacks.current.onReferenceLeave(),
+        onLeave: (nextTarget) => callbacks.current.onReferenceLeave(nextTarget),
+        onPreviewScroll: (direction) => callbacks.current.onPreviewScroll(direction),
         onClick: (candidate) => callbacks.current.onReferenceClick(candidate),
         getCanon: () => canon.current,
       }),

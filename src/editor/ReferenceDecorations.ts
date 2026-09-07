@@ -13,7 +13,8 @@ export type PositionedValidReference = ReferenceCandidate;
 
 type ReferenceDecorationOptions = {
   onHover: (candidate: PositionedReference, rect: DOMRect) => void;
-  onLeave: () => void;
+  onLeave: (nextTarget?: EventTarget | null) => void;
+  onPreviewScroll: (direction: 1 | -1) => void;
   onClick: (candidate: PositionedValidReference) => void;
   getCanon: () => CanonMetadata;
 };
@@ -52,10 +53,10 @@ function decorationsForBlock(
         role: valid ? "button" : "note",
         tabindex: "0",
         "aria-label": valid
-          ? `Preview and insert ${positioned.display}. Press Enter or Space to insert; use arrow keys for other references.`
+          ? `Preview and insert ${positioned.display}. Press Enter or Space to insert; use arrow keys for other references; Page Up and Page Down scroll the preview.`
           : `Invalid reference: ${positioned.display}. ${positioned.issue.message} Use arrow keys for other references.`,
         "aria-keyshortcuts": valid
-          ? "Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight Escape F6 Shift+F6"
+          ? "Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight PageUp PageDown Escape F6 Shift+F6"
           : "ArrowUp ArrowDown ArrowLeft ArrowRight Escape F6 Shift+F6",
         "data-reference-kind": positioned.kind,
         "data-verseform-reference": encodeURIComponent(JSON.stringify(positioned)),
@@ -161,6 +162,7 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
     return {
       onHover: () => undefined,
       onLeave: () => undefined,
+      onPreviewScroll: () => undefined,
       onClick: () => undefined,
       getCanon: () => WEB_CANON,
     };
@@ -201,16 +203,21 @@ export const ReferenceDecorations = Extension.create<ReferenceDecorationOptions>
             mouseout: (_view, event) => {
               const element = referenceElement(event.target);
               const next = referenceElement(event.relatedTarget);
-              if (element && next !== element) options.onLeave();
+              if (element && next !== element) options.onLeave(event.relatedTarget);
               return false;
             },
             focusin: (view, event) => { showPreview(view, event.target); return false; },
             focusout: (_view, event) => {
-              if (referenceElement(event.target) && !referenceElement(event.relatedTarget)) options.onLeave();
+              if (referenceElement(event.target) && !referenceElement(event.relatedTarget)) options.onLeave(event.relatedTarget);
               return false;
             },
             keydown: (view, event) => {
               const activeReference = referenceElement(document.activeElement);
+              if (activeReference && (event.key === "PageDown" || event.key === "PageUp")) {
+                event.preventDefault();
+                options.onPreviewScroll(event.key === "PageDown" ? 1 : -1);
+                return true;
+              }
               if (event.key === "Escape" && activeReference) {
                 event.preventDefault();
                 options.onLeave();

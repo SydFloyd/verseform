@@ -793,6 +793,9 @@ kbd {
   position: fixed;
   z-index: 10;
   width: min(370px, calc(100vw - 2rem));
+  max-height: min(300px, calc(100vh - 24px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid #a99a82;
   border-radius: 0.65rem;
   padding: 1rem 1.1rem;

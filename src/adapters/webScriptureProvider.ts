@@ -1,6 +1,6 @@
 import type { Passage, ScriptureProvider, Translation, TranslationCatalog } from "../app/ports";
-import { WEB_CANON, canonBook } from "../core/canon";
-import type { NormalizedReference } from "../core/reference";
+import { WEB_CANON } from "../core/canon";
+import { formatReference, passageSegments, type NormalizedReference } from "../core/reference";
 import webCorpus from "../assets/web-corpus.json";
 
 type WebCorpus = {
@@ -65,26 +65,27 @@ export class WebScriptureProvider implements ScriptureProvider {
     translationId: string,
     signal?: AbortSignal,
   ): Promise<Passage> {
-    this.options.onLookup?.();
-    await wait(this.options.delayMs ?? 0, signal);
     throwIfAborted(signal);
     if (translationId !== WEB_TRANSLATION.id) {
       throw new Error(`The bundled provider does not contain ${translationId}.`);
     }
-    const book = canonBook(WEB_CANON, reference.bookId);
-    const verses = this.corpus.books[reference.bookId]?.[reference.chapter - 1];
-    const end = reference.verseEnd ?? reference.verseStart;
-    if (!book || !verses || reference.verseStart < 1 || end > verses.length) {
-      throw new Error(`${reference.bookName} ${reference.chapter} is unavailable in bundled WEB.`);
-    }
-    const selected = verses.slice(reference.verseStart - 1, end);
-    if (selected.length !== end - reference.verseStart + 1 || selected.some((verse) => !verse)) {
-      throw new Error(`${reference.bookName} ${reference.chapter}:${reference.verseStart} is unavailable in bundled WEB.`);
+    const segments = passageSegments(reference, WEB_CANON);
+    this.options.onLookup?.();
+    await wait(this.options.delayMs ?? 0, signal);
+    throwIfAborted(signal);
+    const selected: string[] = [];
+    for (const segment of segments) {
+      const verses = this.corpus.books[reference.bookId]?.[segment.chapter - 1];
+      for (let verse = segment.verseStart; verse <= segment.verseEnd; verse += 1) {
+        const text = verses?.[verse - 1];
+        if (!text) throw new Error(`${reference.bookName} ${segment.chapter}:${verse} is unavailable in bundled WEB.`);
+        selected.push(text);
+      }
     }
     throwIfAborted(signal);
     return {
       reference,
-      display: `${book.name} ${reference.chapter}:${reference.verseStart}${reference.verseEnd === undefined ? "" : `-${reference.verseEnd}`}`,
+      display: formatReference(reference),
       translationId: WEB_TRANSLATION.id,
       citationLabel: WEB_TRANSLATION.citationLabel,
       translationName: WEB_TRANSLATION.name,

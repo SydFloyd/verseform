@@ -2,7 +2,7 @@ import type {
   Passage, ScriptureProvider, Translation, TranslationCatalog,
 } from "../app/ports";
 import { STANDARD_CANON } from "../core/canon";
-import type { NormalizedReference } from "../core/reference";
+import { formatReference, passageSegments, type NormalizedReference } from "../core/reference";
 
 export const DBS_CATALOG_LIMIT = 8 * 1024 * 1024;
 export const DBS_CHAPTER_LIMIT = 2 * 1024 * 1024;
@@ -180,26 +180,35 @@ export class DbsScriptureProvider implements ScriptureProvider {
     if (!translationIdPattern.test(translationId)) throw new Error("That translation identifier is invalid.");
     const translation = this.catalog?.find((item) => item.id === translationId);
     if (!translation) throw new Error("That translation is not in the authorized DBS catalog.");
-    const response = await this.transport.getChapter(
-      translationId, reference.bookId, reference.chapter, signal,
-    );
-    const chapter = parseDbsChapter(response.body, reference.chapter);
-    const end = reference.verseEnd ?? reference.verseStart;
+    const segments = passageSegments(reference, translation.canon);
+    const chapters = new Map<number, Map<number, string>>();
     const selected: string[] = [];
-    for (let verse = reference.verseStart; verse <= end; verse += 1) {
-      const text = chapter.get(verse);
-      if (!text) throw new Error(`${reference.bookName} ${reference.chapter}:${verse} is unavailable in ${translation.name}.`);
-      selected.push(text);
+    let cached = true;
+    for (const segment of segments) {
+      if (signal?.aborted) throw new DOMException("Passage request cancelled.", "AbortError");
+      let chapter = chapters.get(segment.chapter);
+      if (!chapter) {
+        const response = await this.transport.getChapter(translationId, reference.bookId, segment.chapter, signal);
+        if (signal?.aborted) throw new DOMException("Passage request cancelled.", "AbortError");
+        chapter = parseDbsChapter(response.body, segment.chapter);
+        chapters.set(segment.chapter, chapter);
+        cached = cached && Boolean(response.cached);
+      }
+      for (let verse = segment.verseStart; verse <= segment.verseEnd; verse += 1) {
+        const text = chapter.get(verse);
+        if (!text) throw new Error(`${reference.bookName} ${segment.chapter}:${verse} is unavailable in ${translation.name}.`);
+        selected.push(text);
+      }
     }
     return {
       reference,
-      display: `${reference.bookName} ${reference.chapter}:${reference.verseStart}${reference.verseEnd === undefined ? "" : `-${reference.verseEnd}`}`,
+      display: formatReference(reference),
       translationId: translation.id,
       citationLabel: translation.citationLabel,
       translationName: translation.name,
       attribution: translation.attribution,
       text: selected.join(" "),
-      cached: response.cached,
+      cached,
     };
   }
 }

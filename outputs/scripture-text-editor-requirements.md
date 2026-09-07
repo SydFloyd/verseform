@@ -50,7 +50,9 @@ The editor will not initially include editable headers or footers, margin contro
 5. Hovering over a valid reference shows the passage preview and active translation.
 6. Clicking the formatted reference replaces it immediately with the verse text followed by a citation, for example: `[verse text] (John 3:16, NASB)`.
 7. Inserted citations are semantically marked and excluded from future reference detection. They remain editable by the user.
-8. Verse ranges must be supported when the referenced range is valid.
+8. Support a whole chapter (`Psalm 23`), a verse or range (`John 3:16-18`), a range crossing chapters in the same book (`John 3:36-4:2`), and comma-separated verses/ranges (`John 3:16,18-20`). Explicit chapter coordinates may follow a comma or semicolon within the same book. Lists must be in Bible order without repeated or overlapping verses.
+9. The insertion limit is **one chapter or 50 verses, whichever is larger**: a selection contained within a single chapter may include that entire chapter, even when it exceeds 50 verses; a selection spanning chapters may contain at most 50 verses in total. This is a per-insertion product limit, not a document-wide quotation allowance. Translation attribution remains required.
+10. Consume and validate the complete reference after a delimiter. Never make a valid prefix of a malformed, unsupported, out-of-bounds, or over-limit reference insertable. Show a local explanation and leave all original text intact. Chapter-only ranges, references spanning books, and shorthand such as `ff` are unsupported; users can enter separate complete references instead.
 
 Inserted scripture contains verse text only, not flattened section headings, and repairs unambiguous missing spacing introduced by provider serialization without rewriting legitimate wording.
 
@@ -76,6 +78,8 @@ Available authorized translations are loaded from DBS. The compact selector show
 ## Initial platform and exclusions
 
 The first release targets Windows. Accounts, cloud synchronization, collaborative editing, editable page furniture, margin adjustment, and DOCX import/export are outside the initial scope.
+
+After Windows validation, the intended next target is a usable browser edition alongside a website offering the Windows installer. Browser-local drafts and portable document import/download are the initial persistence model; user accounts and cloud document storage are deferred pending demand and a separate decision. Supported browsers, persistence guarantees, and browser output behavior must be specified before that implementation begins.
 
 ## Beta acceptance
 

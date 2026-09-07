@@ -1,18 +1,36 @@
-# Verseform 0.2.2 Windows Beta release record
+# Verseform 0.2.3 Windows Beta release record
 
 ## Corrected patch release
 
-The clean Windows workflow published Verseform 0.2.2 only after the exact commit passed the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks. The release attaches `Verseform_0.2.2_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation.
+Verseform 0.2.3 is being prepared for owner-authorized publication. The clean Windows workflow must pass the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks before publishing. It will attach `Verseform_0.2.3_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that same run; verify the installer against the attached checksum before installation. Public 0.2.2 remains the prior immutable release until this gate succeeds.
 
 This remains an unsigned field Beta, not a stable `1.0` or verified-publisher release. Windows SmartScreen may show an unrecognized-publisher warning. Optional defect and daily-use reports belong in the [privacy-constrained Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml); never attach private writing or Verseform document, recovery, or cache files.
 
+## Complete references and passage limits in 0.2.3
+
+Version 0.2.3 adds the following behavior. The immutable public **0.2.2 installer does not contain this change**.
+
+| Type | Example |
+|---|---|
+| Whole chapter | `Psalm 23` or `Psalm 119` |
+| Verse or range | `John 3:16` or `John 3:16-18` |
+| Range crossing chapters in one book | `John 3:36-4:2` |
+| Selected verses and ranges | `John 3:16,18-20` |
+| Explicit next chapter in the same book | `John 3:36; 4:1-2` |
+
+**Insert up to one chapter or 50 verses, whichever is larger, per insertion.** Anything contained within one chapter is allowed, including all 176 verses of Psalm 119. Selections spanning chapters are limited to 50 selected verses total: `John 3:1-4:14` is allowed (50); `John 3:1-4:15` is rejected (51). This limit applies to each insertion, not the number of verses in a document, and does not replace any translation's quotation or attribution conditions.
+
+Add a space, punctuation mark, or paragraph break after the complete reference to activate it. Lists must be in Bible order without repeats or overlap. Chapter-only ranges (`John 3-4`), ranges spanning different books, and shorthand such as `ff` are unsupported; enter separate complete references instead. Invalid bounds, unavailable verses, unsupported numeric syntax, and over-limit selections leave the writing intact and never insert a shorter valid prefix. A provider failure cannot return half a passage or mix translations.
+
+Long previews scroll. With a reference focused using F6, Page Up/Page Down scroll its preview; Enter or Space inserts the complete passage and Ctrl+Z undoes that insertion in one step. Citations and their translation notices remain present after save/reopen and in output.
+
 ## Supported Beta
 
-Verseform 0.2.2 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect valid, fuzzy, ranged, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
+Verseform 0.2.3 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect complete valid, fuzzy, chapter, ranged, listed, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
 
 Online sessions load authorized translations from the public Digital Bible Society ARC API, prefer a saved translation and otherwise NASB when available, and cache successful catalogs for one day and chapters for seven days. Offline sessions explicitly use the bundled public-domain World English Bible (WEB) without changing the saved online preference. Help → Credits & Licenses records the installed version, thanks and links to DBS, identifies the effective translation and WEB, and exposes the audited software-license inventory locally.
 
-The patch keeps the Alpha/Beta application identity and document schema. Installing 0.2.2 over 0.1.0, 0.2.0, or 0.2.1 preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
+The patch keeps the Alpha/Beta application identity and document schema. It uses the existing per-user upgrade path and preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. The clean workflow tests an exact 0.1.0-to-0.2.3 upgrade. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
 
 ## Corrected since 0.2.0
 
@@ -72,13 +90,15 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, Linux, and web distribution are outside this Beta.
 - Print uses the WebView2 browser-preview path. PDF export uses a fixed Letter layout with required scripture notices and an optional page number; printer availability and native destination permissions remain Windows responsibilities.
 - Independent-user validation remains pending until the session above is completed; automated and owner checks establish the candidate, not uncoached usability.
-- The public `0.2.1` build contains the two session blockers described above; use `0.2.2` for the remainder of the independent-user gate.
+- The public `0.2.1` build contains the two earlier session blockers; `0.2.2` resolves those but predates the complete-reference correction. Use the verified `0.2.3` installer for the remaining independent-user gate after publication.
 
 ## Release evidence
 
+- The 0.2.3 source passed `npm run check` before release preparation: 54 pure/provider/kernel/controller/architecture tests plus one skipped live smoke, 44 browser journeys, 11 native unit tests plus one ignored live smoke, 7 Windows smoke tests, TypeScript, Rust formatting/Clippy, and 678 dependency-license records. The clean-runner installer, upgrade, advisory, publication, and re-download evidence remains pending until the new workflow completes.
+
 - The workflow archives the exact unsigned 0.1.0 installer as a non-latest [`v0.1.0` upgrade-baseline pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.1.0), then verifies its 4,197,262 bytes and SHA-256 `0caebf685ed7debfbb164b32a807871fb5d94026c471e1c03f23d2b025544001` before every patch gate. It came from Alpha run `33759181934` at commit `0c41ff0ad845533679611ccb4c5bf969ceaf5e0a`; future patch verification no longer depends on that expiring Actions artifact.
 - The 0.2.2 workflow runs the complete canonical gate, builds the unsigned NSIS installer, proves Alpha-to-patch profile/recovery/cache/document preservation, proves a separate clean offline install/uninstall lifecycle, audits advisories, and records version, commit, run, runner, installer SHA-256, unsigned status, and baseline provenance in `release-evidence.json`.
-- The canonical gate currently contains 45 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 40 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
+- The published 0.2.2 canonical gate contained 45 pure/provider/kernel/controller/architecture tests plus one opt-in live smoke, 40 production-browser journeys, 11 native unit tests plus one opt-in live smoke, 7 Windows smoke tests, TypeScript, Rust formatting, Clippy, capability/CSP validation, and 678 locked dependency-license records.
 - [Clean Windows run `33995590945`](https://github.com/SydFloyd/verseform/actions/runs/33995590945) passed at commit `1da671920bffa5c373640278281d7c213aa95336`: the durable-baseline archive check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its 30-day artifact `verseform-0.2.1-windows-beta` is ID `9978236778` with archive SHA-256 `66d76c9effd7230765051400f26a921a82e7d0d365f16878c04b83fa539b1856`.
 - The public [`v0.2.1` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.1) resolves to that exact commit. Its unsigned 4,309,127-byte installer has SHA-256 `888a771cc705b214115b50e32298ddb6c5c3dd01b7d25d04ebf75be6fbf8a80a`; a fresh public download returned the same size, digest, and `NotSigned` status. GitHub records `SHA256SUMS.txt` as `sha256:0e78bb4e92a76002ad43d82bd2b3faf96a7483e12c400081fbad2ea84fa633e8` and `release-evidence.json` as `sha256:d5712fa3a7efdd97de2590020044c1082bd8aaaa75fc994e8e8d4fc894dc22d9`. Historical 0.2.0 evidence remains in that release and version control.
 - [Clean Windows run `34072828527`](https://github.com/SydFloyd/verseform/actions/runs/34072828527) passed at commit `7344480c5d32228ecc4050feaf02f1df9443338e`: the durable Alpha check, canonical suite, release build, Alpha-to-patch preservation, separate clean offline installer lifecycle, Rust advisory scan, evidence upload, publication, and public re-download verification all succeeded. Its artifact `verseform-0.2.2-windows-beta` is ID `10001327514`, retained through `2026-10-07T01:39:52Z`, with archive SHA-256 `780332fe7a36e3566f69ae535ec006b6bc958eddaab0e1d9c455237386b2150c`.

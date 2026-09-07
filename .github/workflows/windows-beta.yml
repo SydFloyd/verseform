@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  RELEASE_VERSION: 0.2.2
+  RELEASE_VERSION: 0.2.3
 
 jobs:
   archive-alpha-baseline:
@@ -220,7 +220,7 @@ jobs:
             $notes = @"
           Verseform $($env:RELEASE_VERSION) is an unsigned Windows Beta patch for ordinary writing with fast, local scripture-reference detection and one-click insertion.
 
-          This patch keeps later scripture references insertable after an earlier replacement shifts their document positions, while retaining exact source-text and revision freshness checks. It also gives Windows X-close one native Save/Discard/Cancel path instead of competing with a WebView2 unload block, narrowly permits the final main-window destroy after authorization, and keeps any destroy failure visible and recoverable. The recovery, keyboard, and accurate PDF-review corrections from 0.2.1 remain included.
+          This patch recognizes complete scripture references instead of inserting a shorter prefix. It supports whole chapters (Psalm 23), selected verses (John 3:16,18-20), and ranges across chapters in one book (John 3:36-4:2). Each insertion allows one whole chapter, even if longer than 50 verses, or up to 50 selected verses across chapters. Invalid or oversized references remain intact with an explanation; lookups never return a partial or mixed-translation passage. Long previews scroll with the pointer or Page Up/Page Down. Save/reopen, attribution, single-step Undo, and stale-response protection are covered by the release gate. The recovery, keyboard, PDF-review, shifted-reference, and Windows-close corrections from earlier patches remain included.
 
           The installer is not code-signed. Windows SmartScreen may display an unrecognized-publisher warning. Verseform remains local-first: it has no account, telemetry, crash upload, updater, or background GitHub connection. Only an uncached scripture preview or insertion contacts DBS; document prose is never sent.
 
@@ -234,7 +234,9 @@ jobs:
 
           Use invented text and do not attach private writing or Verseform document, recovery, or cache files.
           "@
-            gh release create $tag $installer.FullName $checksum.FullName $evidenceFile.FullName --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Verseform $($env:RELEASE_VERSION) Windows Beta" --notes $notes --prerelease
+            $notesPath = Join-Path "artifacts/publish" "release-notes.md"
+            Set-Content -LiteralPath $notesPath -Value $notes -Encoding utf8
+            gh release create $tag $installer.FullName $checksum.FullName $evidenceFile.FullName --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Verseform $($env:RELEASE_VERSION) Windows Beta" --notes-file $notesPath --prerelease
             if ($LASTEXITCODE -ne 0) { throw "GitHub did not publish the patch pre-release." }
           } elseif ($releaseLookup.StatusCode -ne 200) {
             throw "GitHub release lookup failed with status $($releaseLookup.StatusCode)."
