@@ -26,7 +26,7 @@ The immutable [0.2.0 pre-release](https://github.com/SydFloyd/verseform/releases
 
 ## Session blockers corrected in 0.2.2
 
-Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position, and can refuse to close a dirty Windows window from X. The immutable public release remains available as its exact verified artifact; `0.2.2` corrects both blockers and must pass the clean release gate before the affected tasks are retested.
+Session testing found that `0.2.1` can preview but refuse to insert a later reference after an earlier reference expands and shifts its document position, and can refuse to close a dirty Windows window from X. The immutable public release remains available as its exact verified artifact; the revised local `0.2.2` candidate has passed targeted native retesting for both blockers and still requires the clean release gate before publication.
 
 ## Keyboard
 
