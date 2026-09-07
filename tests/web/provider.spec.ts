@@ -39,14 +39,14 @@ test("real web transport detects locally, fetches anonymous scripture, and reuse
   expect(chapters).toBe(1);
 });
 
-test("Job and 2 Peter stay in NASB through the canonical DBS book mapping", async ({ page, context }) => {
+test("Job's live missing verse falls back without changing NASB, then 2 Peter inserts as NASB", async ({ page, context }) => {
   const chapterRequests: string[] = [];
   await context.route(`${api}**`, async (route) => {
     const url = route.request().url();
     if (url === api) return route.fulfill({ headers, body: JSON.stringify(catalog) });
     chapterRequests.push(url);
     if (url === `${api}ENGNASB/JOB/21`) {
-      return route.fulfill({ headers, body: JSON.stringify([{ "JB21.1": "Recorded Job text from NASB." }]) });
+      return route.fulfill({ headers, body: JSON.stringify([{ "JB21.2": "Recorded Job verse 2 from NASB." }]) });
     }
     if (url === `${api}ENGNASB/2PE/3`) {
       return route.fulfill({ headers, body: JSON.stringify([{ "P23.8": "Recorded 2 Peter text from NASB." }]) });
@@ -56,10 +56,15 @@ test("Job and 2 Peter stay in NASB through the canonical DBS book mapping", asyn
   await page.goto("/");
   await expectTranslation(page, "ENGNASB");
   const editor = page.getByRole("textbox", { name: "Document editor" });
+  await editor.fill("Job 21:2 ");
+  await page.locator(".scripture-reference").click();
+  await expect(editor).toContainText("Recorded Job verse 2 from NASB.");
+  await expect(page.locator(".scripture-citation")).toHaveText("(Job 21:2, NASB)");
+  await expectTranslation(page, "ENGNASB");
+
   await editor.fill("Job 21:1 ");
   await page.locator(".scripture-reference").click();
-  await expect(editor).toContainText("Recorded Job text from NASB.");
-  await expect(page.locator(".scripture-citation")).toHaveText("(Job 21:1, NASB)");
+  await expect(page.locator(".scripture-citation")).toHaveText("(Job 21:1, WEB)");
   await expectTranslation(page, "ENGNASB");
 
   await editor.fill("2 Pet 3:8 ");
@@ -78,6 +83,6 @@ test("malformed provider data yields whole-passage WEB fallback without renderin
   await page.locator(".scripture-reference").click();
   await expect(page.getByRole("textbox", { name: "Document editor" })).toContainText("For God so loved the world");
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
-  await expectTranslation(page, "WEB");
+  await expectTranslation(page, "ENGNASB");
   await expect(page.locator(".status-line")).toContainText("WEB");
 });

@@ -546,7 +546,7 @@ describe("workspace kernel", () => {
       operationId: previewStamp.id,
       passage: { ...passage, translationId: "WEB", translationName: web.name, fallbackFrom: { id: "ENGTEST", name: testTranslation.name } },
     });
-    expect(fallback.state.scripture).toEqual(expect.objectContaining({ selectedId: "WEB", catalogPhase: "offline" }));
+    expect(fallback.state.scripture).toEqual(expect.objectContaining({ selectedId: "ENGTEST", catalogPhase: "ready" }));
   });
 
   test("preview and insertion results are accepted only by the current stamped request", () => {

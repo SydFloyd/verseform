@@ -412,21 +412,6 @@ function startSave(
   ] };
 }
 
-function finishFallback(state: WorkspaceState, passage: Passage): { state: WorkspaceState; effects: WorkspaceEffect[] } {
-  if (!passage.fallbackFrom) return { state, effects: [] };
-  return {
-    state: {
-      ...state,
-      scripture: {
-        ...state.scripture,
-        selectedId: state.scripture.fallback.id,
-        catalogPhase: "offline",
-      },
-    },
-    effects: [{ type: "editor.dispatch", instruction: { type: "references.refresh" } }],
-  };
-}
-
 export function createInitialWorkspace(
   kind: WorkspaceState["kind"],
   fallback: Translation,
@@ -921,17 +906,16 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       return { state: { ...state, scripture: { ...state.scripture, preview: undefined, previewOperation: undefined } }, effects: [] };
     case "scripture.previewResult": {
       if (state.scripture.previewOperation?.stamp.id !== event.operationId || !state.scripture.preview) return { state, effects: [] };
-      const fallback = finishFallback(state, event.passage);
       return {
         state: {
-          ...fallback.state,
+          ...state,
           scripture: {
-            ...fallback.state.scripture,
+            ...state.scripture,
             preview: { ...state.scripture.preview, loading: false, passage: event.passage },
             previewOperation: undefined,
           },
         },
-        effects: fallback.effects,
+        effects: [],
       };
     }
     case "scripture.previewFailed": {
@@ -979,11 +963,10 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       if (!pending || pending.stamp.id !== event.operationId || !pending.passage) return { state, effects: [] };
       if (!event.fresh) return { state: notice({ ...state, scripture: { ...state.scripture, insertion: undefined } }, "Passage not inserted: the document changed during lookup."), effects: [] };
       const passage = pending.passage;
-      const fallback = finishFallback(state, passage);
       const next = notice({
-        ...fallback.state,
+        ...state,
         scripture: {
-          ...fallback.state.scripture,
+          ...state.scripture,
           insertion: undefined,
           preview: undefined,
           previewOperation: undefined,
@@ -992,7 +975,6 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
         ? `${passage.display} inserted from bundled WEB because ${passage.fallbackFrom.name} was unavailable.`
         : `${passage.display} inserted from ${passage.translationName}${passage.cached ? " (local cache)" : ""}.`);
       return { state: next, effects: [
-        ...fallback.effects,
         { type: "editor.dispatch", instruction: { type: "scripture.insert", request: { ...pending.candidate, revision: pending.stamp.revision }, passage } },
       ] };
     }

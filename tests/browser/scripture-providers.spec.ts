@@ -62,7 +62,7 @@ test("starts in explicit bundled WEB mode when the DBS catalog is offline", asyn
   await expect(editor).toContainText("only born Son");
 });
 
-test("a failed DBS passage visibly falls back and can only insert as WEB", async ({ page }) => {
+test("a failed DBS passage visibly inserts as WEB without changing the selected translation", async ({ page }) => {
   await reset(page, "/?dbs=chapter-failure");
   const translation = scriptureTranslation(page);
   await selectScriptureTranslation(page, "ENGTEST");
@@ -72,10 +72,11 @@ test("a failed DBS passage visibly falls back and can only insert as WEB", async
   const reference = page.locator(".scripture-reference");
   await reference.hover();
   await expect(page.getByRole("tooltip")).toContainText("Using bundled WEB because DBS Test Bible is unavailable");
-  await expectTranslation(page, "WEB");
+  await expectTranslation(page, "ENGTEST");
   await reference.click();
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, WEB)");
   await expect(page.locator('[data-translation="ENGTEST"]')).toHaveCount(0);
+  await expectTranslation(page, "ENGTEST");
 
   await page.reload();
   await expectTranslation(page, "ENGTEST");
