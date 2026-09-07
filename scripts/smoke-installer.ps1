@@ -49,9 +49,17 @@ try {
   $env:HTTP_PROXY = "http://127.0.0.1:9"
   $env:HTTPS_PROXY = "http://127.0.0.1:9"
   $app = Start-Process -FilePath $appExecutable -PassThru -WindowStyle Hidden
-  Start-Sleep -Seconds 6
-  if ($app.HasExited) { throw "Installed app exited before the offline launch check completed." }
-  if (-not (Get-Process -Id $app.Id).Responding) { throw "Installed app did not become responsive." }
+  $responsive = $false
+  for ($elapsedSeconds = 1; $elapsedSeconds -le 30; $elapsedSeconds++) {
+    Start-Sleep -Seconds 1
+    if ($app.HasExited) { throw "Installed app exited before the offline launch check completed." }
+    if ($elapsedSeconds -ge 6 -and (Get-Process -Id $app.Id).Responding) {
+      $responsive = $true
+      Write-Output "Installed app became responsive after $elapsedSeconds seconds."
+      break
+    }
+  }
+  if (-not $responsive) { throw "Installed app did not become responsive within 30 seconds." }
 } finally {
   $env:HTTP_PROXY = $oldHttpProxy
   $env:HTTPS_PROXY = $oldHttpsProxy

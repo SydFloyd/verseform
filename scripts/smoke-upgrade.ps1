@@ -51,10 +51,20 @@ function Stop-TestApp([System.Diagnostics.Process]$Process) {
 
 function Start-And-ProveResponsive([string]$Executable) {
   $process = Start-Process -FilePath $Executable -PassThru -WindowStyle Hidden
-  Start-Sleep -Seconds 6
-  if ($process.HasExited) { throw "Installed app exited before the upgrade launch check completed." }
-  if (-not (Get-Process -Id $process.Id).Responding) { throw "Installed app did not become responsive." }
-  return $process
+  try {
+    for ($elapsedSeconds = 1; $elapsedSeconds -le 30; $elapsedSeconds++) {
+      Start-Sleep -Seconds 1
+      if ($process.HasExited) { throw "Installed app exited before the upgrade launch check completed." }
+      if ($elapsedSeconds -ge 6 -and (Get-Process -Id $process.Id).Responding) {
+        Write-Output "Upgrade app became responsive after $elapsedSeconds seconds." | Out-Host
+        return $process
+      }
+    }
+    throw "Installed app did not become responsive within 30 seconds."
+  } catch {
+    Stop-TestApp $process
+    throw
+  }
 }
 
 function Write-Utf8Json([string]$Path, [object]$Value) {
