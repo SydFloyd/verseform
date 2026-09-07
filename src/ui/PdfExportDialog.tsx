@@ -3,6 +3,7 @@ import type { PrintSnapshot } from "../core/output";
 import { PaginatedOutput, type PaginationResult } from "./PaginatedOutput";
 
 export function PdfExportDialog({
+  browserOutput = false,
   snapshot,
   pageNumbers,
   dialogRef,
@@ -16,6 +17,7 @@ export function PdfExportDialog({
   onPreviewReady,
   onPreviewError,
 }: {
+  browserOutput?: boolean;
   snapshot: PrintSnapshot;
   pageNumbers: boolean;
   dialogRef: RefObject<HTMLElement | null>;
@@ -42,8 +44,8 @@ export function PdfExportDialog({
       <div className="pdf-export-heading">
         <div>
           <p className="eyebrow">PDF preview</p>
-          <h2 id="pdf-export-heading">Export PDF</h2>
-          <p id="pdf-export-description">Review the frozen pages exactly as they will be saved. Your writing remains unchanged.</p>
+          <h2 id="pdf-export-heading">{browserOutput ? "Save as PDF" : "Export PDF"}</h2>
+          <p id="pdf-export-description">{browserOutput ? "Review these pages, then choose Save as PDF in your browser's print dialog. Use Letter paper, 100% scale, and turn off browser headers and footers." : "Review the frozen pages exactly as they will be saved. Your writing remains unchanged."}</p>
         </div>
         <label className="pdf-page-numbers">
           <input type="checkbox" checked={pageNumbers} onChange={onTogglePageNumbers} />
@@ -72,7 +74,7 @@ export function PdfExportDialog({
             type="button"
             aria-disabled={!ready}
             onClick={() => { if (ready) onExport(); }}
-          >Export PDF…</button>
+          >{browserOutput ? "Open print dialog…" : "Export PDF…"}</button>
         </div>
       </div>
     </section>

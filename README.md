@@ -1,6 +1,6 @@
 # Verseform
 
-Verseform is a lightweight, local-first Windows text editor with one-click scripture insertion from authorized DBS translations and bundled WEB fallback.
+Verseform is a lightweight, local-first text editor for Windows and desktop browsers, with one-click scripture insertion from authorized DBS translations and bundled WEB fallback.
 
 ## Start here
 
@@ -22,12 +22,31 @@ Read [BETA-RELEASE.md](BETA-RELEASE.md) for supported behavior, keyboard command
 
 ## Develop and verify
 
+The browser edition shares the Windows editor, scripture logic, and portable document format. It saves drafts in this browser without an account, supports `.verseform` import/download, and uses the browser's Print/Save as PDF dialog. After the **Ready offline** indicator appears, it can reopen offline with bundled WEB. Clearing site data or private browsing can remove drafts; download documents you want to keep. Current desktop Chrome and Edge are the supported browser targets.
+
+```powershell
+npm ci
+npm run dev:web
+```
+
+Open `http://127.0.0.1:1430`. `npm run build:web` creates the deployable `dist-web/`; `npm run preview:web` serves it on port 1431, and `npm run test:web` tests the actual production build with its hosting security headers. The default `npm run dev` / `dist/` browser mode is a deterministic test harness and must never be deployed as the website.
+
+### Deploy to Vercel
+
+Import **SydFloyd/verseform** into your Vercel account with repository root `.` and Node.js 22. The checked-in `vercel.json` selects Vite, **Build Command: `npm run build:web`**, and **Output Directory: `dist-web`**. No environment variables, API keys, backend, or paid add-on are required. The site opens directly into the editor and links the immutable Windows 0.2.3 installer on GitHub Releases.
+
+Keep a stable production domain: drafts belong to their exact browser and origin and do not move between preview URLs or domains. After deployment, verify online NASB insertion, a download/import round trip, and offline reopening after **Ready offline**. Vercel account linking and the live deployment remain owner setup until an authenticated project is available.
+
+Ordinary pushes and pull requests run application checks. Windows publication now requires explicit dispatch of `Windows patch candidate`; bump to a new immutable version before publishing another Windows release. Web deployments do not republish 0.2.3.
+
+### Windows development
+
 ```powershell
 npm ci
 npm run dev:desktop
 ```
 
-The canonical repository check runs TypeScript, pure tests, the production browser harness, and native Rust/Windows smoke tests:
+The canonical repository check runs TypeScript, pure tests, the deterministic browser harness, production web acceptance, and native Rust/Windows smoke tests:
 
 ```powershell
 npm run check

@@ -27,6 +27,7 @@ export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCo
   if (command === "file.print" || command === "file.savePdf" || command === "file.pageNumbers") {
     return state.editorReady && state.output.phase === "idle";
   }
+  if (command === "file.download") return state.kind === "web" && state.editorReady && !state.persistence.save;
   if (command === "file.save" || command === "file.saveAs") {
     return state.editorReady && !state.persistence.save;
   }
@@ -37,7 +38,10 @@ export function selectCommandEnabled(state: WorkspaceState, command: WorkspaceCo
 }
 
 export type WorkspaceViewModel = {
+  kind: WorkspaceState["kind"];
+  offlineState: WorkspaceState["offlineState"];
   displayName: string;
+  hasDocumentPath: boolean;
   dirty: boolean;
   status: string;
   recent: WorkspaceState["library"]["recent"];
@@ -57,7 +61,10 @@ export type WorkspaceViewModel = {
 
 export function selectViewModel(state: WorkspaceState): WorkspaceViewModel {
   return {
+    kind: state.kind,
+    offlineState: state.offlineState,
     displayName: state.document.displayName,
+    hasDocumentPath: Boolean(state.document.path),
     dirty: selectDirty(state),
     status: state.notice.message,
     recent: state.library.recent,

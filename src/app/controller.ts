@@ -35,6 +35,7 @@ export interface WorkspaceHost {
   onKeyStroke(handler: (stroke: KeyStroke) => boolean): () => void;
   promptForLink(current: string): string | null;
   publishDiagnostics(snapshot: DiagnosticSnapshot): void;
+  onPageHidden?(handler: () => void): () => void;
 }
 
 export type WorkspaceControllerDependencies = {
@@ -78,8 +79,11 @@ export class WorkspaceController {
   start(): void {
     if (this.started) return;
     this.started = true;
-    if (this.dependencies.runtime.kind === "browser") {
+    if (this.dependencies.runtime.kind !== "tauri") {
       this.disposers.push(this.dependencies.host.onBeforeUnload(() => selectDirty(this.state)));
+    }
+    if (this.dependencies.runtime.kind === "web" && this.dependencies.host.onPageHidden) {
+      this.disposers.push(this.dependencies.host.onPageHidden(() => this.send({ type: "persistence.flush" })));
     }
     this.disposers.push(this.dependencies.host.onKeyStroke((stroke) => {
       const command = commandForKeyStroke(stroke);
@@ -385,6 +389,13 @@ export class WorkspaceController {
           .then((saved) => this.send({ type: "persistence.saved", operationId: effect.stamp.id, document: effect.document, saved, autosave: effect.autosave }))
           .catch((error: unknown) => this.send({ type: "persistence.saveFailed", operationId: effect.stamp.id, error: errorMessage(error), autosave: effect.autosave }));
         return;
+      case "document.download":
+        void (runtime.documents.download
+          ? runtime.documents.download(effect.document, effect.suggestedName)
+          : Promise.reject(new Error("Document downloads are unavailable.")))
+          .then(() => this.send({ type: "persistence.downloaded", operationId: effect.stamp.id }))
+          .catch((error: unknown) => this.send({ type: "persistence.saveFailed", operationId: effect.stamp.id, error: errorMessage(error), autosave: false }));
+        return;
       case "document.saveAs":
         void runtime.documents.saveAs(effect.document, effect.suggestedName)
           .then((saved) => saved
@@ -405,7 +416,9 @@ export class WorkspaceController {
           .catch((error: unknown) => this.send({ type: "document.openFailed", operationId: effect.stamp.id, error: errorMessage(error) }));
         return;
       case "document.discardRecovery":
-        void this.enqueueRecoveryTask(effect.documentId, () => runtime.documents.discardRecovery(effect.documentId))
+        void this.enqueueRecoveryTask(effect.documentId, () => effect.capturedAtMs === undefined
+          ? runtime.documents.discardRecovery(effect.documentId)
+          : runtime.documents.discardRecovery(effect.documentId, effect.capturedAtMs))
           .catch(() => undefined);
         return;
       case "window.close":

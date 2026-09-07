@@ -2,7 +2,7 @@
 
 ## Product
 
-Verseform is a lightweight Windows desktop text editor for writing ordinary rich-text documents and quickly inserting scripture from authorized DBS endpoints. The application is local-first, requires no account, and treats scripture insertion as a fast part of typing rather than a separate search workflow.
+Verseform is a lightweight Windows desktop text editor with an authorized browser edition for writing ordinary rich-text documents and quickly inserting scripture from authorized DBS endpoints. The application is local-first, requires no account, and treats scripture insertion as a fast part of typing rather than a separate search workflow. The Windows contracts below retain their native semantics; the Browser edition section defines its platform differences.
 
 ## Product principles
 
@@ -79,7 +79,17 @@ Available authorized translations are loaded from DBS. The compact selector show
 
 The first release targets Windows. Accounts, cloud synchronization, collaborative editing, editable page furniture, margin adjustment, and DOCX import/export are outside the initial scope.
 
-After Windows validation, the intended next target is a usable browser edition alongside a website offering the Windows installer. Browser-local drafts and portable document import/download are the initial persistence model; user accounts and cloud document storage are deferred pending demand and a separate decision. Supported browsers, persistence guarantees, and browser output behavior must be specified before that implementation begins.
+The owner authorized the browser edition after publication of Windows 0.2.3. The first browser target is current desktop Chrome and Edge, served over HTTPS from Vercel using this repository's shared editor and core. It opens directly into writing and links the verified Windows release. Mobile, Safari, Firefox, accounts, and cloud document storage are deferred.
+
+### Browser edition
+
+- Drafts, recovery, preferences, and permitted scripture caches stay in transactional IndexedDB storage in the current browser and origin. Typing autosaves locally; Save commits immediately, Save a copy creates an independent draft, and an explicit Download creates a portable `.verseform` snapshot. Import validates the complete file and creates a separate local copy without overwriting an existing draft.
+- Name drafts through Save a copy; show all saved browser drafts in the local picker. Clearing browser data or storage eviction can remove local drafts, so provide a brief explanation and a portable download action. Storage denial, quota exhaustion, failed transactions, and another tab changing a draft must retain the current writing and report failure. A stale tab must not overwrite a newer stored revision.
+- Browser downloads only report that a download was started; they do not mark local writing saved or claim that a user retained a file. An asynchronous import or open must not replace writing edited while it was loading.
+- Use the real public DBS catalog/chapter endpoints directly with bounded, cancelable, anonymous requests and validated cached responses. Detection stays local. Bundled WEB remains explicit fallback, with the same passage limits, citation metadata, and attribution as Windows.
+- Print and Save PDF use the shared frozen, attributed Letter-page renderer and the browser print dialog. Save PDF explains choosing the browser's PDF destination, disabling browser headers/footers, and using Letter paper at 100% scale. It does not claim native destination control or completed file creation. If browser chrome invokes printing before a current snapshot exists, show instructions to use Verseform's File menu; never silently print a previous draft snapshot.
+- After a successful first visit and application-cache installation, the editor and bundled WEB reopen offline. App updates wait for existing tabs to close; they must not force a reload or delete drafts. Failed offline installation leaves the online editor usable with a visible explanation.
+- Browser help explains reference insertion, local-only storage, downloads, output, and credits. Production web output contains no fake scripture, simulated file paths, test controls, or diagnostic globals. Browser deployment and explicit Windows release publication have separate triggers.
 
 ## Beta acceptance
 

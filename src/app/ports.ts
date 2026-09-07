@@ -1,4 +1,4 @@
-import type { VerseformDocument } from "../core/document";
+import type { DocumentIdentity, VerseformDocument } from "../core/document";
 import type { NormalizedReference } from "../core/reference";
 import type { PrintSnapshot } from "../core/output";
 import type { CanonMetadata } from "../core/canon";
@@ -58,11 +58,12 @@ export interface DocumentStore {
   listRecent(): Promise<RecentDocument[]>;
   writeRecovery(snapshot: RecoverySnapshot): Promise<void>;
   listRecoveries(): Promise<RecoverySnapshot[]>;
-  discardRecovery(documentId: string): Promise<void>;
+  discardRecovery(documentId: string, capturedAtMs?: number): Promise<void>;
+  download?(document: VerseformDocument, suggestedName: string): Promise<void>;
 }
 
 export type OpenedDocument = SavedDocument & { document: VerseformDocument };
-export type SavedDocument = { path: string; displayName: string };
+export type SavedDocument = { path: string; displayName: string; identity?: DocumentIdentity };
 export type RecentDocument = SavedDocument & { lastOpenedAtMs: number };
 export type RecoverySnapshot = {
   document: VerseformDocument;
@@ -96,5 +97,5 @@ export type RuntimeAdapters = {
   output: OutputAdapter;
   externalLinks: ExternalLinkAdapter;
   window: WindowAdapter;
-  kind: "browser" | "tauri";
+  kind: "browser" | "tauri" | "web";
 };

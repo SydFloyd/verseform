@@ -66,6 +66,10 @@ if (
 ) fail("The durable Alpha upgrade baseline manifest is incomplete or unsafe.");
 
 const releaseWorkflow = readFileSync(resolve(root, ".github/workflows/windows-beta.yml"), "utf8");
+const releaseTriggers = releaseWorkflow.split(/^on:\s*$/m)[1]?.split(/^permissions:/m)[0] ?? "";
+if (!/^\s+workflow_dispatch:\s*$/m.test(releaseTriggers) || /\bpush:|\bpull_request:|\btags:|\bschedule:/m.test(releaseTriggers)) {
+  fail("Windows publication must be explicitly dispatched; ordinary web pushes cannot publish a desktop release.");
+}
 const patchJob = (releaseWorkflow.split(/^  verify-windows-patch:/m)[1] ?? "")
   .split(/^  publish-windows-patch:/m)[0];
 if (/actions\/download-artifact|\brun-id:/i.test(patchJob)) {

@@ -4,7 +4,7 @@ import type { WorkspaceEvent, WorkspaceState } from "./workspace";
 
 export type WorkspaceCommandId =
   | "file.new" | "file.open" | "file.openRecent" | "file.save" | "file.saveAs"
-  | "file.pageNumbers" | "file.print" | "file.savePdf"
+  | "file.pageNumbers" | "file.print" | "file.savePdf" | "file.download"
   | "edit.undo" | "edit.redo" | "edit.find" | "edit.paragraph"
   | "help.credits"
   | "format.bold" | "format.italic" | "format.underline" | "format.strike"
@@ -25,6 +25,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: "file.openRecent", label: "Open recent" },
   { id: "file.save", label: "Save", shortcut: "Ctrl+S", globalShortcut: true },
   { id: "file.saveAs", label: "Save As", shortcut: "Ctrl+Shift+S", globalShortcut: true },
+  { id: "file.download", label: "Download .verseform" },
   { id: "file.pageNumbers", label: "Page numbers" },
   { id: "file.print", label: "Print", shortcut: "Ctrl+P", globalShortcut: true },
   { id: "file.savePdf", label: "Save PDF" },
@@ -73,6 +74,7 @@ export function eventForCommand(
       : undefined;
     case "file.save": return { type: "persistence.saveRequest", forceSaveAs: false };
     case "file.saveAs": return { type: "persistence.saveRequest", forceSaveAs: true };
+    case "file.download": return { type: "persistence.downloadRequest" };
     case "file.pageNumbers": return { type: "output.togglePageNumbers" };
     case "file.print": return { type: "output.request", mode: "print" };
     case "file.savePdf": return { type: "output.request", mode: "pdf" };

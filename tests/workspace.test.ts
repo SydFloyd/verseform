@@ -141,6 +141,57 @@ function dirtyDraftWithRecovery(): WorkspaceState {
   }).state;
 }
 
+describe("production web persistence", () => {
+  const edited = () => transition({ ...createInitialWorkspace("web", web), editorReady: true }, {
+    type: "editor.observed", documentChanged: true, contentHash: contentHash(content), formatting: DEFAULT_FORMATTING,
+  }).state;
+
+  test("new drafts autosave and explicit Save uses local storage without a copy dialog", () => {
+    const state = edited();
+    expect(state.document.path).toBeUndefined();
+    expect(state.persistence.autosave?.phase).toBe("scheduled");
+    const flushed = step(state, { type: "persistence.flush" });
+    expect(flushed.effects.filter((item) => item.type === "editor.capture")).toHaveLength(2);
+    const saving = step(state, { type: "persistence.saveRequest", forceSaveAs: false });
+    const capture = effect(saving.effects, "editor.capture");
+    const saved = step(saving.state, { type: "editor.captured", stamp: capture.stamp, purpose: capture.purpose, document: documentFor(capture.stamp) });
+    expect(effect(saved.effects, "document.save").path).toBe("draft:document-1");
+    expect(saved.effects.some((item) => item.type === "document.saveAs")).toBe(false);
+  });
+
+  test("download never marks unsaved writing saved and retires late responses", () => {
+    const state = edited();
+    const downloading = step(state, { type: "persistence.downloadRequest" });
+    const capture = effect(downloading.effects, "editor.capture");
+    const captured = step(downloading.state, { type: "editor.captured", stamp: capture.stamp, purpose: capture.purpose, document: documentFor(capture.stamp) });
+    expect(effect(captured.effects, "document.download")).toBeDefined();
+    const finished = step(captured.state, { type: "persistence.downloaded", operationId: capture.stamp.id });
+    expect(selectDirty(finished.state)).toBe(true);
+    expect(finished.state.document.savedHash).toBe(state.document.savedHash);
+    expect(finished.state.document.path).toBeUndefined();
+    expect(finished.state.persistence.autosave?.phase).toBe("scheduled");
+    expect(step(finished.state, { type: "persistence.downloaded", operationId: capture.stamp.id }).state).toBe(finished.state);
+  });
+
+  test("a delayed import keeps intervening writing and exposes the imported copy in Drafts", () => {
+    const opening = step(createInitialWorkspace("web", web), { type: "document.request", action: { type: "open" } });
+    const state = step(opening.state, { type: "editor.observed", documentChanged: true, contentHash: contentHash(content), formatting: DEFAULT_FORMATTING }).state;
+    const stamp = effect(opening.effects, "document.open").stamp;
+    const result = step(state, { type: "document.opened", operationId: stamp.id, contentHash: contentHash(recoveredContent), opened: { path: "draft:imported", displayName: "Imported", document: documentFor(stamp, recoveredContent) } });
+    expect(result.state.document.currentHash).toBe(state.document.currentHash);
+    expect(result.effects.some((item) => item.type === "editor.dispatch")).toBe(false);
+    expect(effect(result.effects, "library.listRecent")).toBeDefined();
+  });
+
+  test("restoring browser recovery schedules persistence even without an editor change event", () => {
+    const recovery = { ...recoveryFor(), sourcePath: undefined };
+    const result = step(createInitialWorkspace("web", web), { type: "document.request", action: { type: "recovery", recovery, displayName: "Recovered" } });
+    expect(result.state.document.currentHash).toBe(recovery.contentHash);
+    expect(result.state.persistence.autosave?.phase).toBe("scheduled");
+    expect(result.effects.filter((item) => item.type === "timer.schedule")).toHaveLength(2);
+  });
+});
+
 describe("workspace kernel", () => {
   test("startup emits each boundary read once and exposes only redacted diagnostics", () => {
     const started = step(initial(), { type: "app.started" });

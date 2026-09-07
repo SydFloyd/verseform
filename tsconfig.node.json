@@ -12,8 +12,11 @@
   },
   "include": [
     "vite.config.ts",
+    "vite.web.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
+    "playwright.web.config.ts",
+    "tests/web/**/*.ts",
     "tests/browser/**/*.ts"
   ]
 }

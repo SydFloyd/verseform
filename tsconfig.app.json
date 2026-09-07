@@ -16,5 +16,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "tests/**/*.test.ts"]
+  "include": ["src", "web", "tests/**/*.test.ts"]
 }

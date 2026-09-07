@@ -12,6 +12,7 @@ import { CreditsDialog } from "./CreditsDialog";
 import { PdfExportDialog } from "./PdfExportDialog";
 import { PaginatedOutput, type PaginationResult } from "./PaginatedOutput";
 import { TranslationPicker } from "./TranslationPicker";
+import { WebDocumentBar } from "./WebDocumentBar";
 
 type MenuName = "file" | "edit" | "help";
 
@@ -269,6 +270,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
   );
   const formatting = view.formatting;
   const recovery = view.recoveries[0];
+  const web = view.kind === "web";
   const initialCanon = controller.getState().scripture.fallback.canon;
 
   return (
@@ -297,14 +299,16 @@ export function App({ controller }: { controller: WorkspaceController }) {
           if (event.shiftKey) controller.focusReference("lastReference");
           else controller.focusEditor();
         }}>
+        {web ? <WebDocumentBar view={view} canDownload={controller.isEnabled("file.download")} onDownload={() => run("file.download")} /> : null}
         <nav className="toolbar document-toolbar" aria-label="Application and scripture controls">
           <div className="menu-strip" role="group" aria-label="Application menus">
           <ToolbarMenu id="file-menu" label="File" open={openMenu === "file"} buttonRef={fileMenuButtonRef} onToggle={(open) => setOpenMenu(open ? "file" : undefined)}>
             <MenuItem shortcut={shortcut("file.new")} disabled={!controller.isEnabled("file.new")} onClick={() => requestAction("file.new", undefined, fileMenuButtonRef.current)}>{label("file.new")}</MenuItem>
-            <MenuItem shortcut={shortcut("file.open")} disabled={!controller.isEnabled("file.open")} onClick={() => requestAction("file.open", undefined, fileMenuButtonRef.current)}>{label("file.open")}</MenuItem>
+            <MenuItem shortcut={shortcut("file.open")} disabled={!controller.isEnabled("file.open")} onClick={() => requestAction("file.open", undefined, fileMenuButtonRef.current)}>{web ? "Import .verseform…" : label("file.open")}</MenuItem>
             <div className="menu-separator" role="separator" />
-            <MenuItem shortcut={shortcut("file.save")} disabled={!controller.isEnabled("file.save")} onClick={() => run("file.save")}>{label("file.save")}</MenuItem>
-            <MenuItem shortcut={shortcut("file.saveAs")} disabled={!controller.isEnabled("file.saveAs")} onClick={() => run("file.saveAs")}>{label("file.saveAs")}</MenuItem>
+            <MenuItem shortcut={shortcut("file.save")} disabled={!controller.isEnabled("file.save")} onClick={() => run("file.save")}>{web ? "Save draft" : label("file.save")}</MenuItem>
+            <MenuItem shortcut={shortcut("file.saveAs")} disabled={!controller.isEnabled("file.saveAs")} onClick={() => run("file.saveAs")}>{web ? "Save a copy…" : label("file.saveAs")}</MenuItem>
+            {web ? <MenuItem disabled={!controller.isEnabled("file.download")} onClick={() => run("file.download")}>{label("file.download")}</MenuItem> : null}
             <div className="menu-separator" role="separator" />
             <MenuItem checked={view.pageNumbers} disabled={!controller.isEnabled("file.pageNumbers")} onClick={() => run("file.pageNumbers")}>{label("file.pageNumbers")}</MenuItem>
             <MenuItem shortcut={shortcut("file.print")} disabled={!controller.isEnabled("file.print")} onClick={() => run("file.print")}>{label("file.print")}</MenuItem>
@@ -331,8 +335,8 @@ export function App({ controller }: { controller: WorkspaceController }) {
           </ToolbarMenu>
           </div>
           <div className="scripture-strip" role="group" aria-label="Scripture controls">
-          {view.recent.length ? <label className="recent-picker">Recent
-            <select aria-label="Recent files" value="" onChange={(event) => requestAction("file.openRecent", event.target.value)}>
+          {view.recent.length ? <label className="recent-picker">{web ? "Drafts" : "Recent"}
+            <select aria-label={web ? "Local drafts" : "Recent files"} value="" onChange={(event) => requestAction("file.openRecent", event.target.value)}>
               <option value="">Choose…</option>{view.recent.map((item) => <option key={item.path} value={item.path}>{item.displayName}</option>)}
             </select>
           </label> : null}
@@ -410,7 +414,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
             fileMenuButtonRef.current?.focus();
           }}
         /></section>
-        <p className="status-line" role="status" aria-live="polite">{view.status}</p>
+        <p className="status-line" role="status" aria-live="polite">{web ? <span className="web-offline-state">{view.offlineState === "ready" ? "Ready offline" : view.offlineState === "preparing" ? "Preparing offline access…" : "Offline reopening unavailable"}</span> : null}{view.status}</p>
 
         {view.preview ? <aside ref={passagePreviewRef} className="passage-preview" role="tooltip" tabIndex={0}
           onMouseLeave={() => controller.referenceLeave()}
@@ -424,6 +428,7 @@ export function App({ controller }: { controller: WorkspaceController }) {
       </main>
 
       {pdfExport && view.printSnapshot ? <PdfExportDialog
+        browserOutput={web}
         snapshot={view.printSnapshot}
         pageNumbers={view.pageNumbers}
         dialogRef={pdfDialogRef}
@@ -468,6 +473,10 @@ export function App({ controller }: { controller: WorkspaceController }) {
         ? `Your current writing has not been saved. Save it before restoring ${recoveryConfirmation.displayName}, recovered ${new Date(recoveryConfirmation.recovery.capturedAtMs).toLocaleString()}.`
         : "Your latest writing has not been saved to the document."}</p><div><button autoFocus type="button" onClick={() => resolvePending("cancel")}>Cancel</button><button type="button" onClick={() => resolvePending("discard")}>Discard</button><button className="primary-action" type="button" onClick={() => resolvePending("save")}>Save</button></div></section></div> : null}
 
+      {view.kind === "web" && !view.printSnapshot ? <section className="web-print-guide" aria-hidden="true">
+        <h1>Print from Verseform</h1>
+        <p>Close this browser dialog, then choose File → Print or File → Save PDF inside Verseform to prepare your current writing with its scripture attribution.</p>
+      </section> : null}
       {view.printSnapshot ? <div className="print-surface" aria-hidden="true"><PaginatedOutput
         snapshot={view.printSnapshot}
         mode="print"

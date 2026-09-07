@@ -66,6 +66,7 @@ type SaveOperation = {
   stamp: OperationStamp;
   forceSaveAs: boolean;
   continuation?: PendingDocumentAction;
+  download?: boolean;
 };
 type DocumentOperation = { phase: "opening"; stamp: OperationStamp; action: PendingDocumentAction };
 type LookupOperation = {
@@ -79,7 +80,8 @@ export type WorkspaceState = {
   started: boolean;
   editorReady: boolean;
   nextOperationId: number;
-  kind: "browser" | "tauri";
+  kind: "browser" | "tauri" | "web";
+  offlineState?: "preparing" | "ready" | "unavailable";
   document: {
     identity?: DocumentIdentity;
     path?: string;
@@ -147,7 +149,8 @@ export type WorkspaceEffect =
   | { type: "document.saveAs"; stamp: OperationStamp; document: VerseformDocument; suggestedName: string }
   | { type: "document.open"; stamp: OperationStamp }
   | { type: "document.openRecent"; stamp: OperationStamp; path: string }
-  | { type: "document.discardRecovery"; documentId: string }
+  | { type: "document.discardRecovery"; documentId: string; capturedAtMs?: number }
+  | { type: "document.download"; stamp: OperationStamp; document: VerseformDocument; suggestedName: string }
   | { type: "window.close" }
   | { type: "preference.saveTranslation"; translationId: string; stamp: OperationStamp }
   | { type: "scripture.lookupPreview"; candidate: ReferenceCandidate; stamp: OperationStamp }
@@ -162,6 +165,10 @@ export type WorkspaceEffect =
 
 export type WorkspaceEvent =
   | { type: "app.started" }
+  | { type: "web.offlineState"; status: "preparing" | "ready" | "unavailable" }
+  | { type: "persistence.flush" }
+  | { type: "persistence.downloadRequest" }
+  | { type: "persistence.downloaded"; operationId: number }
   | { type: "editor.ready" }
   | { type: "editor.detached" }
   | { type: "editor.observed"; contentHash: string; formatting: EditorFormatting; documentChanged: boolean }
@@ -281,7 +288,7 @@ function schedulePersistence(state: WorkspaceState): TransitionResult {
       autosave: undefined,
     },
   };
-  if (next.document.path) {
+  if (next.document.path || next.kind === "web") {
     const autosaveStamp = operationStamp(next);
     next = advance(next);
     next = {
@@ -330,12 +337,14 @@ function beginAction(state: WorkspaceState, action: PendingDocumentAction): Tran
       output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, snapshot: undefined, layoutReady: false },
       overlay: { type: "none" },
     }, "Recovery restored. Save to keep it.");
-    return { state: next, effects: [
+    const scheduled = next.kind === "web" ? schedulePersistence(next) : { state: next, effects: [] };
+    return { state: scheduled.state, effects: [
       { type: "timer.cancel", timer: "recovery" },
       { type: "timer.cancel", timer: "autosave" },
       { type: "scripture.cancelLookups" },
       { type: "editor.dispatch", instruction: { type: "content.set", content: recovery.document.content } },
       titleEffect(next),
+      ...scheduled.effects,
     ] };
   }
   if (action.type === "new") {
@@ -380,6 +389,7 @@ function startSave(
   state: WorkspaceState,
   forceSaveAs: boolean,
   continuation?: PendingDocumentAction,
+  download = false,
 ): TransitionResult {
   if (state.persistence.save) return { state, effects: [] };
   const stamp = operationStamp(state);
@@ -389,7 +399,7 @@ function startSave(
       ...state.persistence,
       recovery: undefined,
       autosave: undefined,
-      save: { phase: "capturing", stamp, forceSaveAs, continuation },
+      save: { phase: "capturing", stamp, forceSaveAs, continuation, download },
     },
   });
   return { state: next, effects: [
@@ -415,7 +425,7 @@ function finishFallback(state: WorkspaceState, passage: Passage): { state: Works
 }
 
 export function createInitialWorkspace(
-  kind: "browser" | "tauri",
+  kind: WorkspaceState["kind"],
   fallback: Translation,
 ): WorkspaceState {
   return {
@@ -423,6 +433,7 @@ export function createInitialWorkspace(
     editorReady: false,
     nextOperationId: 1,
     kind,
+    offlineState: kind === "web" ? "preparing" : undefined,
     document: {
       displayName: "Untitled.verseform",
       revision: 0,
@@ -440,12 +451,37 @@ export function createInitialWorkspace(
     output: { pageNumbers: false, phase: "idle", layoutVersion: 0 },
     overlay: { type: "none" },
     formatting: DEFAULT_FORMATTING,
-    notice: { id: 0, message: kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready" },
+    notice: { id: 0, message: kind === "web" ? "Ready. Drafts stay in this browser." : kind === "tauri" ? "Desktop mode · ready" : "Browser harness · ready" },
   };
 }
 
 export function transition(state: WorkspaceState, event: WorkspaceEvent): TransitionResult {
   switch (event.type) {
+    case "web.offlineState":
+      return state.kind === "web" ? { state: { ...state, offlineState: event.status }, effects: [] } : { state, effects: [] };
+    case "persistence.flush": {
+      if (state.kind !== "web" || state.persistence.save) return { state, effects: [] };
+      let next = state;
+      const effects: WorkspaceEffect[] = [];
+      for (const timer of ["recovery", "autosave"] as const) {
+        const pending = next.persistence[timer];
+        if (pending?.phase !== "scheduled") continue;
+        const result = transition(next, { type: "timer.fired", timer, operationId: pending.stamp.id });
+        next = result.state;
+        effects.push({ type: "timer.cancel", timer }, ...result.effects);
+      }
+      return { state: next, effects };
+    }
+    case "persistence.downloadRequest":
+      return state.kind === "web" ? startSave(state, false, undefined, true) : { state, effects: [] };
+    case "persistence.downloaded": {
+      const pending = state.persistence.save;
+      if (!pending?.download || pending.stamp.id !== event.operationId) return { state, effects: [] };
+      const next = { ...state, persistence: { ...state.persistence, save: undefined } };
+      const result = next.document.currentHash !== next.document.savedHash
+        ? schedulePersistence(next) : { state: next, effects: [] };
+      return { ...result, state: notice(result.state, "Download started. Keep the .verseform file as a portable copy.") };
+    }
     case "app.started": {
       if (state.started) return { state, effects: [] };
       const recentStamp = operationStamp(state);
@@ -484,6 +520,9 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       }
       const changed = {
         ...state,
+        output: state.kind === "web" && state.output.phase === "idle"
+          ? { ...state.output, snapshot: undefined, stamp: undefined, layoutReady: false }
+          : state.output,
         document: {
           ...state.document,
           revision: state.document.revision + 1,
@@ -539,7 +578,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       }
       if (event.purpose.type === "autosave") {
         const pending = state.persistence.autosave;
-        const path = state.document.path;
+        const path = state.document.path ?? (state.kind === "web" ? `draft:${event.document.documentId}` : undefined);
         if (!pending || pending.stamp.id !== event.stamp.id || pending.phase !== "capturing" || !path) return { state, effects: [] };
         const stamp = { ...pending.stamp, documentId: event.document.documentId };
         return {
@@ -560,7 +599,8 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
           document: { ...state.document, identity },
           persistence: { ...state.persistence, save: { ...pending, phase: "writing" as const, stamp } },
         };
-        const path = state.document.path;
+        const path = state.document.path ?? (state.kind === "web" ? `draft:${event.document.documentId}` : undefined);
+        if (pending.download) return { state: next, effects: [{ type: "document.download", stamp, document: event.document, suggestedName: state.document.displayName }] };
         return { state: next, effects: [path && !pending.forceSaveAs
           ? { type: "document.save", stamp, document: event.document, path, autosave: false }
           : { type: "document.saveAs", stamp, document: event.document, suggestedName: state.document.displayName }],
@@ -658,7 +698,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
     case "persistence.saved": {
       const pending = event.autosave ? state.persistence.autosave : state.persistence.save;
       if (!pending || pending.stamp.id !== event.operationId) return { state, effects: [] };
-      const identity: DocumentIdentity = {
+      const identity: DocumentIdentity = event.saved.identity ?? {
         documentId: event.document.documentId,
         title: event.document.title,
         createdAt: event.document.createdAt,
@@ -693,7 +733,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       }
       if (!event.autosave || pending.stamp.noticeId === state.notice.id) {
         next = notice(next, exact
-          ? `${event.autosave ? "Autosaved" : "Saved"} ${event.saved.displayName}.`
+          ? state.kind === "web" ? `Saved ${event.saved.displayName} in this browser.` : `${event.autosave ? "Autosaved" : "Saved"} ${event.saved.displayName}.`
           : "The document changed while saving; the latest recovery copy was kept.");
       }
       if (!event.autosave && state.persistence.save?.continuation && exact) {
@@ -723,7 +763,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
           save: event.autosave ? state.persistence.save : undefined,
         },
       };
-      const message = `${event.autosave ? "Autosave" : "Save"} failed: ${event.error}`;
+      const message = `${!event.autosave && state.persistence.save?.download ? "Download" : event.autosave ? "Autosave" : "Save"} failed: ${event.error}`;
       if (event.autosave && pending.stamp.noticeId !== state.notice.id) {
         return { state: cleared, effects: [] };
       }
@@ -754,6 +794,9 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
     case "document.opened": {
       const operation = state.document.operation;
       if (!operation || operation.stamp.id !== event.operationId) return { state, effects: [] };
+      if (state.kind === "web" && operation.stamp.revision !== state.document.revision) {
+        return { state: notice({ ...state, document: { ...state.document, operation: undefined }, library: { ...state.library, recentOperationId: operation.stamp.id } }, "Your writing changed while opening. It was kept; choose the other document from Drafts when ready."), effects: [{ type: "library.listRecent", stamp: operation.stamp }] };
+      }
       const next = notice({
         ...state,
         document: {
@@ -800,7 +843,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       return { state: {
         ...state,
         library: { ...state.library, recoveries: state.library.recoveries.filter((item) => item !== event.recovery) },
-      }, effects: [{ type: "document.discardRecovery", documentId: event.recovery.document.documentId }] };
+      }, effects: [{ type: "document.discardRecovery", documentId: event.recovery.document.documentId, capturedAtMs: event.recovery.capturedAtMs }] };
     case "scripture.catalogResult": {
       if (state.scripture.catalogOperationId !== event.operationId) return { state, effects: [] };
       const available = event.catalog.offline
@@ -1032,7 +1075,7 @@ export function transition(state: WorkspaceState, event: WorkspaceEvent): Transi
       if (state.output.stamp?.id !== event.operationId || state.output.phase !== "savingPdf") return { state, effects: [] };
       return { state: notice({ ...state, output: { ...state.output, phase: "idle", mode: undefined, stamp: undefined, layoutReady: false } }, event.saved
         ? `Exported ${event.saved.displayName} without changing the document.`
-        : "PDF export canceled. The document was not changed."), effects: [] };
+        : state.kind === "web" ? "PDF output is handled by your browser's print dialog." : "PDF export canceled. The document was not changed."), effects: [] };
     }
     case "output.failed": {
       if (state.output.stamp?.id !== event.operationId || state.output.mode !== event.mode) return { state, effects: [] };

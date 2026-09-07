@@ -1,0 +1,31 @@
+name: Application checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: npm ci
+      - run: npx playwright install msedge
+      - run: npm run check
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: application-check-evidence
+          path: artifacts/
+          retention-days: 7
