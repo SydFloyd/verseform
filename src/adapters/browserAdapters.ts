@@ -7,7 +7,7 @@ import {
 } from "../core/document";
 import type { PrintSnapshot } from "../core/output";
 import type { DbsTransport, DbsTransportResponse } from "./dbsScriptureProvider";
-import { DbsScriptureProvider } from "./dbsScriptureProvider";
+import { DBS_BOOK_IDS, DbsScriptureProvider } from "./dbsScriptureProvider";
 import { CompositeScriptureProvider } from "./scriptureProvider";
 import { WebScriptureProvider } from "./webScriptureProvider";
 
@@ -76,8 +76,10 @@ class BrowserDbsTransport implements DbsTransport {
     if (this.mode === "chapter-failure") throw new Error("DBS is unavailable while this device is offline.");
     if (this.mode === "malformed") return { body: "{not-json" };
     window.dispatchEvent(new CustomEvent("verseform:dbs-network-request"));
+    const responseBookId = DBS_BOOK_IDS[bookId];
+    if (!responseBookId) throw new Error("The requested book is not in the DBS fixture.");
     const body = JSON.stringify(Array.from({ length: 200 }, (_, index) => ({
-      [`${bookId}${chapter}.${index + 1}`]: `DBS test verse ${index + 1} for ${bookId}.`,
+      [`${responseBookId}${chapter}.${index + 1}`]: `DBS test verse ${index + 1} for ${bookId}.`,
     })));
     localStorage.setItem(cacheKey, body);
     return { body };

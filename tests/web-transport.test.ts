@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { WebDatabase } from "../src/web/database";
 import { WebDbsTransport } from "../src/web/scripture";
 import { DBS_BOOK_IDS, DBS_CHAPTER_LIMIT } from "../src/adapters/dbsScriptureProvider";
+import { STANDARD_CANON } from "../src/core/canon";
 
 function setup() {
   const db = new WebDatabase();
@@ -21,50 +22,51 @@ test("web transport rejects invalid coordinates and bounds streamed bytes before
     controller.close();
   } })));
   vi.stubGlobal("fetch", fetch);
-  await expect(transport.getChapter("../secret", "JN", 3)).rejects.toThrow("Invalid scripture coordinates");
+  await expect(transport.getChapter("../secret", "JHN", 3)).rejects.toThrow("Invalid scripture coordinates");
   expect(fetch).not.toHaveBeenCalled();
-  await expect(transport.getChapter("ENGNASB", "JN", 3)).rejects.toThrow("size limit");
+  await expect(transport.getChapter("ENGNASB", "JHN", 3)).rejects.toThrow("size limit");
   expect(db.transaction).not.toHaveBeenCalled();
 });
 
-test("web transport accepts and parses every mapped DBS book identifier", async () => {
+test("web transport accepts every canonical route and validates its DBS response identifier", async () => {
   const { transport } = setup();
   const fetch = vi.fn().mockImplementation(async (input: string | URL | Request) => {
     const url = new URL(String(input));
     const parts = url.pathname.split("/");
     const bookId = parts.at(-2)!;
-    return new Response(JSON.stringify([{ [`${bookId}1.1`]: `Recorded ${bookId} text.` }]));
+    const responseBookId = DBS_BOOK_IDS[bookId];
+    return new Response(JSON.stringify([{ [`${responseBookId}1.1`]: `Recorded ${responseBookId} text.` }]));
   });
   vi.stubGlobal("fetch", fetch);
-  const ids = Object.values(DBS_BOOK_IDS);
-  expect(ids).toHaveLength(66);
-  expect(new Set(ids).size).toBe(66);
-  for (const bookId of ids) {
-    await expect(transport.getChapter("ENGNASB", bookId, 1), bookId)
-      .resolves.toEqual({ body: JSON.stringify([{ [`${bookId}1.1`]: `Recorded ${bookId} text.` }]) });
+  expect(Object.keys(DBS_BOOK_IDS)).toHaveLength(66);
+  expect(new Set(Object.values(DBS_BOOK_IDS)).size).toBe(66);
+  for (const book of STANDARD_CANON.books) {
+    const responseBookId = DBS_BOOK_IDS[book.id];
+    await expect(transport.getChapter("ENGNASB", book.id, 1), book.name)
+      .resolves.toEqual({ body: JSON.stringify([{ [`${responseBookId}1.1`]: `Recorded ${responseBookId} text.` }]) });
   }
   expect(fetch).toHaveBeenCalledTimes(66);
 });
 
 test("caller cancellation never returns a stale cached passage", async () => {
   const { db, transport } = setup();
-  vi.mocked(db.read).mockResolvedValue({ key: "ENGNASB/JN/3", body: '[{"JN3.16":"Cached text"}]', fetchedAtMs: 0, bytes: 35 });
+  vi.mocked(db.read).mockResolvedValue({ key: "ENGNASB/JHN/3", body: '[{"JN3.16":"Cached text"}]', fetchedAtMs: 0, bytes: 35 });
   const abort = new AbortController();
   vi.stubGlobal("fetch", vi.fn().mockImplementation(async (_url, options: RequestInit) => new Promise((_resolve, reject) => {
     options.signal!.addEventListener("abort", () => reject(options.signal!.reason));
     abort.abort(new DOMException("Canceled", "AbortError"));
   })));
-  await expect(transport.getChapter("ENGNASB", "JN", 3, abort.signal)).rejects.toMatchObject({ name: "AbortError" });
+  await expect(transport.getChapter("ENGNASB", "JHN", 3, abort.signal)).rejects.toMatchObject({ name: "AbortError" });
   expect(db.transaction).not.toHaveBeenCalled();
 });
 
 test("validated stale data survives service failure and cache failure cannot suppress valid online text", async () => {
   const { db, transport } = setup();
   const body = '[{"JN3.16":"Cached text"}]';
-  vi.mocked(db.read).mockResolvedValue({ key: "ENGNASB/JN/3", body, fetchedAtMs: 0, bytes: body.length });
+  vi.mocked(db.read).mockResolvedValue({ key: "ENGNASB/JHN/3", body, fetchedAtMs: 0, bytes: body.length });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
-  await expect(transport.getChapter("ENGNASB", "JN", 3)).resolves.toEqual({ body, cached: true, stale: true });
+  await expect(transport.getChapter("ENGNASB", "JHN", 3)).resolves.toEqual({ body, cached: true, stale: true });
   vi.mocked(db.read).mockResolvedValue(undefined);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
-  await expect(transport.getChapter("ENGNASB", "JN", 3)).resolves.toEqual({ body });
+  await expect(transport.getChapter("ENGNASB", "JHN", 3)).resolves.toEqual({ body });
 });

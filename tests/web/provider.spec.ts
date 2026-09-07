@@ -14,7 +14,7 @@ test("real web transport detects locally, fetches anonymous scripture, and reuse
     expect(request.headers()["referer"]).toBeUndefined();
     if (request.url() === api) return route.fulfill({ headers, body: JSON.stringify(catalog) });
     chapters++;
-    expect(request.url()).toBe(`${api}ENGNASB/JN/3`);
+    expect(request.url()).toBe(`${api}ENGNASB/JHN/3`);
     await route.fulfill({ headers, body: JSON.stringify([{ "JN3.16": "Recorded John text from the transport fixture." }]) });
   });
   await page.goto("/");
@@ -45,10 +45,10 @@ test("Job and 2 Peter stay in NASB through the canonical DBS book mapping", asyn
     const url = route.request().url();
     if (url === api) return route.fulfill({ headers, body: JSON.stringify(catalog) });
     chapterRequests.push(url);
-    if (url === `${api}ENGNASB/JB/21`) {
+    if (url === `${api}ENGNASB/JOB/21`) {
       return route.fulfill({ headers, body: JSON.stringify([{ "JB21.1": "Recorded Job text from NASB." }]) });
     }
-    if (url === `${api}ENGNASB/P2/3`) {
+    if (url === `${api}ENGNASB/2PE/3`) {
       return route.fulfill({ headers, body: JSON.stringify([{ "P23.8": "Recorded 2 Peter text from NASB." }]) });
     }
     return route.fulfill({ status: 404, headers, body: "[]" });
@@ -67,7 +67,7 @@ test("Job and 2 Peter stay in NASB through the canonical DBS book mapping", asyn
   await expect(editor).toContainText("Recorded 2 Peter text from NASB.");
   await expect(page.locator(".scripture-citation")).toHaveText("(2 Peter 3:8, NASB)");
   await expectTranslation(page, "ENGNASB");
-  expect(chapterRequests).toEqual([`${api}ENGNASB/JB/21`, `${api}ENGNASB/P2/3`]);
+  expect(chapterRequests).toEqual([`${api}ENGNASB/JOB/21`, `${api}ENGNASB/2PE/3`]);
 });
 
 test("malformed provider data yields whole-passage WEB fallback without rendering provider markup", async ({ page, context }) => {

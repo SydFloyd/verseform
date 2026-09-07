@@ -1,4 +1,4 @@
-import { DBS_CATALOG_LIMIT, DBS_CHAPTER_LIMIT, parseDbsCatalog, parseDbsChapter, type DbsTransport, type DbsTransportResponse } from "../adapters/dbsScriptureProvider";
+import { DBS_BOOK_IDS, DBS_CATALOG_LIMIT, DBS_CHAPTER_LIMIT, parseDbsCatalog, parseDbsChapter, type DbsTransport, type DbsTransportResponse } from "../adapters/dbsScriptureProvider";
 import { WebDatabase } from "./database";
 
 const endpoint = "https://arc.dbs.org/api/bible-text/";
@@ -13,11 +13,15 @@ export class WebDbsTransport implements DbsTransport {
   }
 
   getChapter(translationId: string, bookId: string, chapter: number, signal?: AbortSignal): Promise<DbsTransportResponse> {
-    if (!/^[A-Za-z0-9_-]{1,64}$/u.test(translationId) || !/^[A-Z0-9]{2}$/u.test(bookId) || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/u.test(translationId) || !/^[1-3]?[A-Z]{2,3}$/u.test(bookId) || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) {
       return Promise.reject(new Error("Invalid scripture coordinates."));
     }
     return this.get(`${translationId}/${bookId}/${chapter}`, `${endpoint}${translationId}/${bookId}/${chapter}`,
-      DBS_CHAPTER_LIMIT, 7 * day, (body) => { parseDbsChapter(body, chapter, bookId); }, signal);
+      DBS_CHAPTER_LIMIT, 7 * day, (body) => {
+        const responseBookId = DBS_BOOK_IDS[bookId];
+        if (!responseBookId) throw new Error("Invalid scripture coordinates.");
+        parseDbsChapter(body, chapter, responseBookId);
+      }, signal);
   }
 
   private async get(key: string, url: string, limit: number, ttl: number, validate: (body: string) => void, signal?: AbortSignal): Promise<DbsTransportResponse> {

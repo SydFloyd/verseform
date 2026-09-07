@@ -84,15 +84,16 @@ describe("scripture provider contract", () => {
     expect(transport.chapterCalls).toBe(1);
   });
 
-  it("maps every canonical book to the DBS text identifier", async () => {
+  it("requests every canonical USFM book and parses its DBS response identifier", async () => {
     expect(dbsBookIds).toHaveLength(STANDARD_CANON.books.length);
     let requestIndex = 0;
     const transport: DbsTransport = {
       getCatalog: async () => ({ body: catalogBody }),
       getChapter: async (_translationId, bookId, chapter) => {
-        expect(bookId, STANDARD_CANON.books[requestIndex]?.name).toBe(dbsBookIds[requestIndex]);
+        expect(bookId, STANDARD_CANON.books[requestIndex]?.name).toBe(STANDARD_CANON.books[requestIndex]?.id);
+        const responseBookId = dbsBookIds[requestIndex];
         requestIndex += 1;
-        return { body: JSON.stringify([{ [`${bookId}${chapter}.1`]: `Recorded ${bookId} text.` }]) };
+        return { body: JSON.stringify([{ [`${responseBookId}${chapter}.1`]: `Recorded ${responseBookId} text.` }]) };
       },
     };
     const provider = new DbsScriptureProvider(transport);

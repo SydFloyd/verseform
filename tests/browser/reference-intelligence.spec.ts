@@ -48,9 +48,9 @@ test("distinguishes valid, fuzzy, ranged, and invalid references without network
   expect(await page.evaluate(() => (window as typeof window & { __providerRequests?: number }).__providerRequests)).toBe(0);
 
   await valid.nth(1).hover();
-  await expect(warning).toContainText("DBS test verse 4 for C1");
+  await expect(warning).toContainText("DBS test verse 4 for 1CO");
   await valid.nth(1).click();
-  await expect(editor).toContainText("DBS test verse 4 for C1");
+  await expect(editor).toContainText("DBS test verse 4 for 1CO");
   await expect(page.locator(".scripture-citation")).toHaveText("(1 Corinthians 13:4-7, NASB)");
   await expect(page.locator(".scripture-reference")).toHaveCount(1);
   expect(await page.evaluate(() => (window as typeof window & { __providerRequests?: number }).__providerRequests)).toBeGreaterThanOrEqual(2);
@@ -71,7 +71,7 @@ test("keeps previews inside the viewport and supports keyboard insertion", async
   await reference.scrollIntoViewIfNeeded();
   await reference.hover();
   const tooltip = page.getByRole("tooltip");
-  await expect(tooltip).toContainText("DBS test verse 16 for JN");
+  await expect(tooltip).toContainText("DBS test verse 16 for JHN");
   const box = await tooltip.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -101,7 +101,7 @@ test("inserts a later reference after an earlier replacement shifts its document
   await expect(references).toHaveCount(1);
 
   await references.first().hover();
-  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 1 for JH");
+  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 1 for JON");
   await references.first().click();
 
   await expect(page.locator(".scripture-citation")).toHaveCount(2);
