@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  RELEASE_VERSION: 0.2.3
+  RELEASE_VERSION: 0.2.4
 
 jobs:
   archive-alpha-baseline:
@@ -216,7 +216,7 @@ jobs:
             $notes = @"
           Verseform $($env:RELEASE_VERSION) is an unsigned Windows Beta patch for ordinary writing with fast, local scripture-reference detection and one-click insertion.
 
-          This patch recognizes complete scripture references instead of inserting a shorter prefix. It supports whole chapters (Psalm 23), selected verses (John 3:16,18-20), and ranges across chapters in one book (John 3:36-4:2). Each insertion allows one whole chapter, even if longer than 50 verses, or up to 50 selected verses across chapters. Invalid or oversized references remain intact with an explanation; lookups never return a partial or mixed-translation passage. Long previews scroll with the pointer or Page Up/Page Down. Save/reopen, attribution, single-step Undo, and stale-response protection are covered by the release gate. The recovery, keyboard, PDF-review, shifted-reference, and Windows-close corrections from earlier patches remain included.
+          This patch clarifies the shared editor chrome and indentation behavior. Tab increases only the current ordinary paragraph's first-line indent. Shift+Tab keeps the existing whole-paragraph outdent and list-lift behavior, while the dedicated toolbar buttons retain whole-paragraph indentation with clearer icons and labels. File now shows the unchecked page-number state explicitly, and the scripture selector has a visible border and disclosure arrow. Complete-reference support remains included: whole chapters, selected verses, and same-book ranges across chapters allow one whole chapter or up to 50 selected verses. Save/reopen, output, attribution, single-step Undo, stale-response protection, recovery, keyboard access, PDF review, and Windows close behavior remain covered by the release gate.
 
           The installer is not code-signed. Windows SmartScreen may display an unrecognized-publisher warning. Verseform remains local-first: it has no account, telemetry, crash upload, updater, or background GitHub connection. Only an uncached scripture preview or insertion contacts DBS; document prose is never sent.
 

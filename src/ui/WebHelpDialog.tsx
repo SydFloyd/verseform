@@ -40,7 +40,7 @@ export function WebHelpDialog({
         <p>File → Save PDF reviews attributed pages, then opens your browser's print dialog. Choose Save as PDF, Letter paper, 100% scale, and turn off browser headers and footers. Your browser handles the destination and saving.</p>
         <p>Use current desktop Chrome or Edge. {view.offlineState === "ready" ? "The editor and bundled WEB are ready to reopen offline." : view.offlineState === "preparing" ? "Preparing the editor for offline use…" : "Offline reopening is unavailable here; your local drafts can still be saved and downloaded."}</p>
         <p>Online scripture comes from Digital Bible Society; offline scripture uses bundled WEB. Help → Credits & Licenses lists translation and software notices.</p>
-        <p><a href="https://github.com/SydFloyd/verseform/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Privacy</a> · <a href="https://github.com/SydFloyd/verseform/releases/tag/v0.2.3" target="_blank" rel="noreferrer">Windows 0.2.3 release notes</a> (unsigned Beta)</p>
+        <p><a href="https://github.com/SydFloyd/verseform/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Privacy</a> · <a href="https://github.com/SydFloyd/verseform/releases/tag/v0.2.4" target="_blank" rel="noreferrer">Windows 0.2.4 release notes</a> (unsigned Beta)</p>
       </div>
 
       <div className="dialog-actions">

@@ -50,7 +50,7 @@ test("real browser drafts survive reload and portable import/download preserves 
   expect(reimported.document.documentId).not.toBe(exported.document.documentId);
   expect(reimported.document.content).toEqual(exported.document.content);
   expect(await page.evaluate(() => "__VERSEFORM_DIAGNOSTICS__" in window || "__TAURI_INTERNALS__" in window)).toBe(false);
-  await expect(page.getByRole("link", { name: "Download for Windows" })).toHaveAttribute("href", /v0\.2\.3\/Verseform_0\.2\.3_x64-setup\.exe$/);
+  await expect(page.getByRole("link", { name: "Download for Windows" })).toHaveAttribute("href", /v0\.2\.4\/Verseform_0\.2\.4_x64-setup\.exe$/);
   expect(errors).toEqual([]);
 });
 

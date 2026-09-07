@@ -12,7 +12,7 @@ Verseform is a lightweight, local-first text editor for Windows and desktop brow
 
 ## Current milestone
 
-Verseform `0.2.3` is the current [public Windows Beta patch](https://github.com/SydFloyd/verseform/releases/tag/v0.2.3). It adds complete-reference recognition: whole chapters, ordered verse lists, and ranges across chapters, with a one-chapter-or-50-verses insertion limit. See [examples and limitations](BETA-RELEASE.md#complete-references-and-passage-limits-in-023). The clean Windows release gate and fresh public-download verification passed; the installer remains unsigned.
+Verseform `0.2.4` is the owner-authorized Windows Beta candidate for the shared menu, selector, and indentation refinements. It retains complete-reference recognition: whole chapters, ordered verse lists, and ranges across chapters, with a one-chapter-or-50-verses insertion limit. See [the release record](BETA-RELEASE.md). The installer remains unsigned; the record will identify the exact public bytes after the clean Windows workflow succeeds.
 
 The shifted-reference and dirty Windows-close corrections from `0.2.2` remain included. Previous releases are immutable, and the exact Alpha upgrade baseline remains durable. The public [Digital Bible Society ARC API](https://arc.dbs.org/docs) and bundled World English Bible remain the online and explicit offline scripture sources, and detection remains entirely local.
 
@@ -33,11 +33,11 @@ Open `http://127.0.0.1:1430`. `npm run build:web` creates the deployable `dist-w
 
 ### Deploy to Vercel
 
-Import **SydFloyd/verseform** into your Vercel account with repository root `.` and Node.js 22. The checked-in `vercel.json` selects Vite, **Build Command: `npm run build:web`**, and **Output Directory: `dist-web`**. No environment variables, API keys, backend, or paid add-on are required. The site opens directly into the editor and links the immutable Windows 0.2.3 installer on GitHub Releases.
+Import **SydFloyd/verseform** into your Vercel account with repository root `.` and Node.js 22. The checked-in `vercel.json` selects Vite, **Build Command: `npm run build:web`**, and **Output Directory: `dist-web`**. No environment variables, API keys, backend, or paid add-on are required. The site opens directly into the editor and links the versioned Windows 0.2.4 installer on GitHub Releases.
 
 Keep the stable `https://verseform.kmproto.com` production origin: drafts belong to their exact browser and origin and do not move between preview URLs or domains. Vercel reports valid domain configuration, and HTTPS navigation plus live NASB insertion were verified after publication.
 
-Ordinary pushes and pull requests run application checks. Windows publication now requires explicit dispatch of `Windows patch candidate`; bump to a new immutable version before publishing another Windows release. Web deployments do not republish 0.2.3.
+Ordinary pushes and pull requests run application checks. Windows publication requires explicit dispatch of `Windows patch candidate`; bump to a new immutable version before publishing another Windows release. Web deployments never publish or replace Windows installer bytes.
 
 ### Windows development
 

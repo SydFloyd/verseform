@@ -1,10 +1,17 @@
-# Verseform 0.2.3 Windows Beta release record
+# Verseform 0.2.4 Windows Beta release record
 
 ## Corrected patch release
 
-Verseform 0.2.3 is the current [public Windows Beta patch](https://github.com/SydFloyd/verseform/releases/tag/v0.2.3). The clean Windows workflow passed the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks before publishing. The release attaches `Verseform_0.2.3_x64-setup.exe`, `SHA256SUMS.txt`, and `release-evidence.json` from that exact successful run; a fresh public download matches all attached evidence. Verify the installer against the attached checksum before installation. Previous releases remain immutable.
+Verseform 0.2.4 is the owner-authorized Windows Beta candidate. Its clean Windows workflow must pass the canonical suite, Alpha-to-patch preservation, a separate clean offline installer lifecycle, npm and Rust advisory audits, and release-boundary checks before publishing `Verseform_0.2.4_x64-setup.exe`. This record will identify the exact public bytes after publication. Previous releases remain immutable.
 
 This remains an unsigned field Beta, not a stable `1.0` or verified-publisher release. Windows SmartScreen may show an unrecognized-publisher warning. Optional defect and daily-use reports belong in the [privacy-constrained Beta feedback form](https://github.com/SydFloyd/verseform/issues/new?template=beta-feedback.yml); never attach private writing or Verseform document, recovery, or cache files.
+
+## Daily writing refinements in 0.2.4
+
+- Tab increases only the first-line indent of an ordinary paragraph. Shift+Tab retains whole-paragraph outdent and list-lift behavior.
+- Dedicated toolbar buttons continue to indent or outdent the whole paragraph and now use clearer paragraph-line icons and labels.
+- File shows an empty checkbox when page numbers are off, and the scripture selector has a subtle border and disclosure arrow.
+- In the browser edition, portable document download lives in File and usage guidance lives in Help. The Windows editor shares the indentation and control-affordance changes.
 
 ## Complete references and passage limits in 0.2.3
 
@@ -26,11 +33,11 @@ Long previews scroll. With a reference focused using F6, Page Up/Page Down scrol
 
 ## Supported Beta
 
-Verseform 0.2.3 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect complete valid, fuzzy, chapter, ranged, listed, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
+Verseform 0.2.4 targets current 64-bit Windows 10 and Windows 11 systems with Microsoft Edge WebView2. Its per-user NSIS installer does not require administrator rights. A user can write and format local `.verseform` documents; detect complete valid, fuzzy, chapter, ranged, listed, and invalid scripture references locally after a delimiter; preview and insert an authorized passage with one click; recover interrupted work; reopen recent documents; print through browser preview; and review then export attributed Letter-size PDFs without an account.
 
 Online sessions load authorized translations from the public Digital Bible Society ARC API, prefer a saved translation and otherwise NASB when available, and cache successful catalogs for one day and chapters for seven days. Offline sessions explicitly use the bundled public-domain World English Bible (WEB) without changing the saved online preference. Help → Credits & Licenses records the installed version, thanks and links to DBS, identifies the effective translation and WEB, and exposes the audited software-license inventory locally.
 
-The patch keeps the Alpha/Beta application identity and document schema. It uses the existing per-user upgrade path and preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. The clean workflow tests an exact 0.1.0-to-0.2.3 upgrade. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
+The patch keeps the Alpha/Beta application identity and document schema. It uses the existing per-user upgrade path and preserves documents, recent-file/profile settings, recovery snapshots, scripture cache, semantic citation metadata, and required attribution. The clean workflow tests an exact 0.1.0-to-0.2.4 upgrade. Uninstall removes the program and Windows registration but deliberately leaves user documents and recoverable app-local data.
 
 ## Corrected since 0.2.0
 
@@ -87,13 +94,14 @@ Scripture service is provided by [Digital Bible Society](https://dbs.org/). Tran
 - The installed app needs Microsoft Edge WebView2. Setup may require a connection to obtain Microsoft's WebView2 bootstrapper when the runtime is absent.
 - A document is limited to 10 MiB serialized, 1,000,000 text characters, 50,000 content nodes, and 64 levels of nesting. An edit or paste that would cross a limit is rejected without replacing accepted writing.
 - Scripture detection uses the standard 66-book Protestant canon. Provider-confirmed chapter omissions remain authoritative, and translations other than bundled WEB require DBS connectivity at least once before their chapters can be cached.
-- The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, and Linux are outside this Windows Beta. The separately built browser edition and Vercel setup are documented in [README.md](README.md#deploy-to-vercel); they do not change the published Windows 0.2.3 assets.
+- The editor is a continuous writing surface. Editing-view pagination, configurable margins, editable headers/footers, DOCX, accounts, sync, collaboration, macOS, and Linux are outside this Windows Beta. The separately built browser edition and Vercel setup are documented in [README.md](README.md#deploy-to-vercel); ordinary web deployment cannot publish or replace Windows installer assets.
 - Print uses the WebView2 browser-preview path. PDF export uses a fixed Letter layout with required scripture notices and an optional page number; printer availability and native destination permissions remain Windows responsibilities.
 - Independent-user validation remains pending until the session above is completed; automated and owner checks establish the candidate, not uncoached usability.
-- The public `0.2.1` build contains the two earlier session blockers; `0.2.2` resolves those but predates the complete-reference correction. Use the verified `0.2.3` installer for the remaining independent-user gate.
+- The public `0.2.1` build contains the two earlier session blockers; `0.2.2` resolves those but predates the complete-reference correction. Use the verified `0.2.4` installer for the remaining independent-user gate after its release evidence is recorded below.
 
 ## Release evidence
 
+- The owner authorized 0.2.4 publication on 2026-09-07. Clean-run evidence and the public installer digest remain pending until the workflow succeeds; do not treat this source record alone as release proof.
 - The published 0.2.3 canonical gate passed 54 pure/provider/kernel/controller/architecture tests and one Windows installer-readiness regression, plus one skipped live smoke; 44 browser journeys; 11 native unit tests plus one ignored live smoke; 7 Windows smoke tests; TypeScript; Rust formatting/Clippy; and 678 dependency-license records.
 - [Clean Windows run `34079972025`](https://github.com/SydFloyd/verseform/actions/runs/34079972025) passed at commit `87e84fcea7b4531d6166335747fdbdbe950aa851`: durable Alpha verification, the canonical suite, release build, exact Alpha-to-0.2.3 data preservation, separate clean offline install/uninstall, advisory audits, evidence upload, publication, and public re-download all succeeded. Artifact `verseform-0.2.3-windows-beta` is ID `10003714791`, retained through `2026-10-07T03:52:51Z`, with archive SHA-256 `6ab021156d38d873a62859d76b1fdc101f7b5e3547ad2693387e10e853c416e7`.
 - The public [`v0.2.3` pre-release](https://github.com/SydFloyd/verseform/releases/tag/v0.2.3) and tag resolve to that exact commit. Its unsigned 4,310,679-byte installer has SHA-256 `95b1f9da1a36a6d3094dff44a7216d5a6830ce69e31510da04323c9b7e19e383`; a fresh public download returned the same size, digest, and `NotSigned` status. The attached checksum and evidence agree on the installer, successful run, commit, and durable Alpha provenance. Public downloads of the checksum and evidence also match GitHub's asset digests: `8051f62491e6fa7f0bffdcf4a21684f49120cd1157f09b30f693745aca7b36df` and `ae196a7936810eff4e3a63ce2a96f38cf0856d1b29de49ebc89a64e38cdd870b`, respectively.

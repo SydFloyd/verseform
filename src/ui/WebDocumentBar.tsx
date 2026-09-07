@@ -10,7 +10,7 @@ export function WebDocumentBar({ view }: {
       <span>{view.dirty ? "Unsaved changes" : view.hasDocumentPath ? "Saved in this browser" : "Local draft"}</span>
     </div>
     <div className="web-document-actions">
-      <a href="https://github.com/SydFloyd/verseform/releases/download/v0.2.3/Verseform_0.2.3_x64-setup.exe" className="windows-download">Download for Windows</a>
+      <a href="https://github.com/SydFloyd/verseform/releases/download/v0.2.4/Verseform_0.2.4_x64-setup.exe" className="windows-download">Download for Windows</a>
     </div>
   </div>;
 }
