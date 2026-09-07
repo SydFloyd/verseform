@@ -15,11 +15,11 @@ test("walks from a detected reference through attributed PDF output", async ({
   await expect(reference).toHaveText("John 3:16");
   await reference.hover();
   const preview = page.getByRole("tooltip");
-  await expect(preview).toContainText("DBS test verse 16 for JHN");
+  await expect(preview).toContainText("DBS test verse 16 for JN");
   await expect(preview).toContainText("New American Standard Bible");
 
   await reference.click();
-  await expect(editor).toContainText("DBS test verse 16 for JHN");
+  await expect(editor).toContainText("DBS test verse 16 for JN");
   await expect(page.locator(".scripture-citation")).toHaveText(
     "(John 3:16, NASB)",
   );
@@ -43,7 +43,7 @@ test("walks from a detected reference through attributed PDF output", async ({
   await expect(page.getByRole("status")).toContainText(
     "Opened Untitled.verseform",
   );
-  await expect(editor).toContainText("DBS test verse 16 for JHN");
+  await expect(editor).toContainText("DBS test verse 16 for JN");
   await expect(page.locator(".scripture-citation")).toHaveText(
     "(John 3:16, NASB)",
   );

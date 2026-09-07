@@ -58,6 +58,8 @@ Inserted scripture contains verse text only, not flattened section headings, and
 
 Available authorized translations are loaded from DBS. The compact selector shows the active translation's citation abbreviation at rest and expands to a keyboard-accessible, searchable list that presents each abbreviation with its full title. The user's preferred translation is stored in a local device profile and used by default across documents. On a first online session with no saved preference, NASB is preferred when the DBS catalog offers it. Without connectivity, the editor clearly switches to the bundled WEB translation and identifies the fallback in previews and inserted citations; that temporary fallback does not overwrite the saved preference.
 
+Every supported 66-book reference must use the scripture provider's corresponding book identifier when retrieving text. The DBS boundary converts Verseform's standard USFM IDs to DBS's two-character IDs, including IDs with a trailing number, and accepts response verses only when their book and chapter match the request. A valid available passage such as `Job 21:1` or `2 Peter 3:8` must not fall back to WEB because of an identifier mismatch.
+
 ## Documents and recovery
 
 - Documents use a portable, app-native single-file format that preserves content, formatting, citations, and citation detection metadata.

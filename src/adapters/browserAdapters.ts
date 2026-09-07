@@ -76,9 +76,8 @@ class BrowserDbsTransport implements DbsTransport {
     if (this.mode === "chapter-failure") throw new Error("DBS is unavailable while this device is offline.");
     if (this.mode === "malformed") return { body: "{not-json" };
     window.dispatchEvent(new CustomEvent("verseform:dbs-network-request"));
-    const prefix = bookId === "JHN" ? "JN" : bookId;
     const body = JSON.stringify(Array.from({ length: 200 }, (_, index) => ({
-      [`${prefix}${chapter}.${index + 1}`]: `DBS test verse ${index + 1} for ${bookId}.`,
+      [`${bookId}${chapter}.${index + 1}`]: `DBS test verse ${index + 1} for ${bookId}.`,
     })));
     localStorage.setItem(cacheKey, body);
     return { body };

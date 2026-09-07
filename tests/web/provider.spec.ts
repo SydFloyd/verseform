@@ -14,7 +14,7 @@ test("real web transport detects locally, fetches anonymous scripture, and reuse
     expect(request.headers()["referer"]).toBeUndefined();
     if (request.url() === api) return route.fulfill({ headers, body: JSON.stringify(catalog) });
     chapters++;
-    expect(request.url()).toBe(`${api}ENGNASB/JHN/3`);
+    expect(request.url()).toBe(`${api}ENGNASB/JN/3`);
     await route.fulfill({ headers, body: JSON.stringify([{ "JN3.16": "Recorded John text from the transport fixture." }]) });
   });
   await page.goto("/");
@@ -37,6 +37,37 @@ test("real web transport detects locally, fetches anonymous scripture, and reuse
   await expect(editor).toContainText("Recorded John text");
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, NASB)");
   expect(chapters).toBe(1);
+});
+
+test("Job and 2 Peter stay in NASB through the canonical DBS book mapping", async ({ page, context }) => {
+  const chapterRequests: string[] = [];
+  await context.route(`${api}**`, async (route) => {
+    const url = route.request().url();
+    if (url === api) return route.fulfill({ headers, body: JSON.stringify(catalog) });
+    chapterRequests.push(url);
+    if (url === `${api}ENGNASB/JB/21`) {
+      return route.fulfill({ headers, body: JSON.stringify([{ "JB21.1": "Recorded Job text from NASB." }]) });
+    }
+    if (url === `${api}ENGNASB/P2/3`) {
+      return route.fulfill({ headers, body: JSON.stringify([{ "P23.8": "Recorded 2 Peter text from NASB." }]) });
+    }
+    return route.fulfill({ status: 404, headers, body: "[]" });
+  });
+  await page.goto("/");
+  await expectTranslation(page, "ENGNASB");
+  const editor = page.getByRole("textbox", { name: "Document editor" });
+  await editor.fill("Job 21:1 ");
+  await page.locator(".scripture-reference").click();
+  await expect(editor).toContainText("Recorded Job text from NASB.");
+  await expect(page.locator(".scripture-citation")).toHaveText("(Job 21:1, NASB)");
+  await expectTranslation(page, "ENGNASB");
+
+  await editor.fill("2 Pet 3:8 ");
+  await page.locator(".scripture-reference").click();
+  await expect(editor).toContainText("Recorded 2 Peter text from NASB.");
+  await expect(page.locator(".scripture-citation")).toHaveText("(2 Peter 3:8, NASB)");
+  await expectTranslation(page, "ENGNASB");
+  expect(chapterRequests).toEqual([`${api}ENGNASB/JB/21`, `${api}ENGNASB/P2/3`]);
 });
 
 test("malformed provider data yields whole-passage WEB fallback without rendering provider markup", async ({ page, context }) => {

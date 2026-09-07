@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ScriptureProvider } from "../src/app/ports";
 import { selectInitialTranslation } from "../src/app/translationSelection";
-import { WEB_CANON } from "../src/core/canon";
+import { STANDARD_CANON, WEB_CANON } from "../src/core/canon";
 import type { NormalizedReference } from "../src/core/reference";
 import {
   DbsScriptureProvider, parseDbsCatalog, parseDbsChapter, type DbsTransport,
@@ -23,6 +23,12 @@ const chapterBody = JSON.stringify([
   { "JN3.16b": "and the second section." },
   { "JN3.17": "The next verse." },
 ]);
+const dbsBookIds = [
+  "GN", "EX", "LV", "NU", "DT", "JS", "JG", "RT", "S1", "S2", "K1", "K2", "R1", "R2", "ER", "NH", "ET", "JB",
+  "PS", "PR", "EC", "SS", "IS", "JR", "LM", "EK", "DN", "HS", "JL", "AM", "OB", "JH", "MC", "NM", "HK", "ZP", "HG",
+  "ZC", "ML", "MT", "MK", "LK", "JN", "AC", "RM", "C1", "C2", "GL", "EP", "PP", "CL", "H1", "H2", "T1", "T2", "TT",
+  "PM", "HB", "JM", "P1", "P2", "J1", "J2", "J3", "JD", "RV",
+];
 
 class RecordedTransport implements DbsTransport {
   catalogCalls = 0;
@@ -78,19 +84,42 @@ describe("scripture provider contract", () => {
     expect(transport.chapterCalls).toBe(1);
   });
 
+  it("maps every canonical book to the DBS text identifier", async () => {
+    expect(dbsBookIds).toHaveLength(STANDARD_CANON.books.length);
+    let requestIndex = 0;
+    const transport: DbsTransport = {
+      getCatalog: async () => ({ body: catalogBody }),
+      getChapter: async (_translationId, bookId, chapter) => {
+        expect(bookId, STANDARD_CANON.books[requestIndex]?.name).toBe(dbsBookIds[requestIndex]);
+        requestIndex += 1;
+        return { body: JSON.stringify([{ [`${bookId}${chapter}.1`]: `Recorded ${bookId} text.` }]) };
+      },
+    };
+    const provider = new DbsScriptureProvider(transport);
+    await provider.listTranslations();
+    for (const book of STANDARD_CANON.books) {
+      const passage = await provider.getPassage({
+        bookId: book.id, bookName: book.name, chapter: 1, verseStart: 1,
+      }, "ENGTEST");
+      expect(passage.translationId, book.name).toBe("ENGTEST");
+      expect(passage.text, book.name).toMatch(/^Recorded [A-Z0-9]{2} text\.$/u);
+    }
+    expect(requestIndex).toBe(66);
+  });
+
   it("repairs glued punctuation and removes only unpunctuated DBS section-heading suffixes", () => {
     const verses = parseDbsChapter(JSON.stringify([{
       "JM1.1": "James, a bond-servant of God and of the Lord Jesus Christ,To the twelve tribes who are dispersed abroad: Greetings.",
       "JM1.2": "He spoke.She listened.",
       "JM1.27": "to keep oneself unstained by the world.The Sin of Partiality",
-    }]), 1);
+    }]), 1, "JM");
     expect(verses.get(1)).toBe("James, a bond-servant of God and of the Lord Jesus Christ, To the twelve tribes who are dispersed abroad: Greetings.");
     expect(verses.get(2)).toBe("He spoke. She listened.");
     expect(verses.get(27)).toBe("to keep oneself unstained by the world.");
 
     const chapterFour = parseDbsChapter(JSON.stringify([{
       "JM4.17": "Therefore, to one who knows the right thing to do and does not do it, to him it is sin.Misuse of Riches",
-    }]), 4);
+    }]), 4, "JM");
     expect(chapterFour.get(17)).toBe("Therefore, to one who knows the right thing to do and does not do it, to him it is sin.");
   });
 });
@@ -120,16 +149,16 @@ describe("provider trust boundaries", () => {
   it("rejects malformed, oversized, and wrong-chapter DBS payloads", () => {
     expect(() => parseDbsCatalog("{bad-json")).toThrow(/malformed/);
     expect(() => parseDbsCatalog(JSON.stringify([{ abbr: "../WEB", title: "Bad" }]))).toThrow(/invalid/);
-    expect(() => parseDbsChapter("[]".padEnd(2 * 1024 * 1024 + 2, " "), 3)).toThrow(/safety limit/);
-    expect(() => parseDbsChapter(JSON.stringify([{ "JN4.16": "Wrong chapter" }]), 3)).toThrow(/wrong chapter/);
-    expect(() => parseDbsChapter(JSON.stringify([{ "JN3.16": "" }]), 3)).toThrow(/empty verse/);
+    expect(() => parseDbsChapter("[]".padEnd(2 * 1024 * 1024 + 2, " "), 3, "JN")).toThrow(/safety limit/);
+    expect(() => parseDbsChapter(JSON.stringify([{ "JN4.16": "Wrong chapter" }]), 3, "JN")).toThrow(/wrong book or chapter/);
+    expect(() => parseDbsChapter(JSON.stringify([{ "JN3.16": "" }]), 3, "JN")).toThrow(/empty verse/);
   });
 
   it("accepts the live DBS shape with many verses in one object", () => {
     const verses = parseDbsChapter(JSON.stringify([{
       "JN3.16": "For God so loved the world.",
       "JN3.17": "God sent his Son.",
-    }]), 3);
+    }]), 3, "JN");
     expect(verses.get(16)).toBe("For God so loved the world.");
     expect(verses.get(17)).toBe("God sent his Son.");
   });

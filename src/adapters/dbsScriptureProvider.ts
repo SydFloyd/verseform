@@ -9,7 +9,20 @@ export const DBS_CHAPTER_LIMIT = 2 * 1024 * 1024;
 const MAX_TRANSLATIONS = 6_000;
 const MAX_VERSES = 250;
 const translationIdPattern = /^[A-Za-z0-9_-]{1,64}$/u;
-const verseKeyPattern = /^([1-3]?[A-Z]{1,3})(\d{1,3})\.(\d{1,3})([a-z]?)$/u;
+const verseSuffixPattern = /^(\d{1,3})([a-z]?)$/u;
+// ARC bible-text addresses the protocanon with DBS's two-character book IDs,
+// while the editor owns standard USFM IDs. Keep the conversion at this boundary.
+export const DBS_BOOK_IDS: Readonly<Record<string, string>> = {
+  GEN: "GN", EXO: "EX", LEV: "LV", NUM: "NU", DEU: "DT", JOS: "JS", JDG: "JG", RUT: "RT",
+  "1SA": "S1", "2SA": "S2", "1KI": "K1", "2KI": "K2", "1CH": "R1", "2CH": "R2",
+  EZR: "ER", NEH: "NH", EST: "ET", JOB: "JB", PSA: "PS", PRO: "PR", ECC: "EC", SNG: "SS",
+  ISA: "IS", JER: "JR", LAM: "LM", EZK: "EK", DAN: "DN", HOS: "HS", JOL: "JL", AMO: "AM",
+  OBA: "OB", JON: "JH", MIC: "MC", NAM: "NM", HAB: "HK", ZEP: "ZP", HAG: "HG", ZEC: "ZC",
+  MAL: "ML", MAT: "MT", MRK: "MK", LUK: "LK", JHN: "JN", ACT: "AC", ROM: "RM", "1CO": "C1",
+  "2CO": "C2", GAL: "GL", EPH: "EP", PHP: "PP", COL: "CL", "1TH": "H1", "2TH": "H2",
+  "1TI": "T1", "2TI": "T2", TIT: "TT", PHM: "PM", HEB: "HB", JAS: "JM", "1PE": "P1",
+  "2PE": "P2", "1JN": "J1", "2JN": "J2", "3JN": "J3", JUD: "JD", REV: "RV",
+};
 const headingMinorWords = new Set([
   "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into",
   "of", "on", "or", "the", "through", "to", "versus", "with", "without",
@@ -122,6 +135,7 @@ export function parseDbsCatalog(body: string): Translation[] {
 export function parseDbsChapter(
   body: string,
   requestedChapter: number,
+  requestedBookId: string,
 ): Map<number, string> {
   if (new TextEncoder().encode(body).byteLength > DBS_CHAPTER_LIMIT) {
     throw new Error("The DBS chapter exceeded Verseform's safety limit.");
@@ -145,11 +159,12 @@ export function parseDbsChapter(
       if (typeof value !== "string" || value.length > 20_000) {
         throw new Error("DBS returned an invalid verse entry.");
       }
-      const match = verseKeyPattern.exec(key);
-      if (!match || Number(match[2]) !== requestedChapter) {
-        throw new Error("DBS returned verse data for the wrong chapter.");
+      const prefix = `${requestedBookId}${requestedChapter}.`;
+      const match = key.startsWith(prefix) ? verseSuffixPattern.exec(key.slice(prefix.length)) : null;
+      if (!match) {
+        throw new Error("DBS returned verse data for the wrong book or chapter.");
       }
-      const verse = Number(match[3]);
+      const verse = Number(match[1]);
       if (verse < 1 || verse > 250) throw new Error("DBS returned an invalid verse number.");
       const text = normalizeDbsVerseText(value);
       if (!text) throw new Error("DBS returned an empty verse.");
@@ -180,6 +195,8 @@ export class DbsScriptureProvider implements ScriptureProvider {
     if (!translationIdPattern.test(translationId)) throw new Error("That translation identifier is invalid.");
     const translation = this.catalog?.find((item) => item.id === translationId);
     if (!translation) throw new Error("That translation is not in the authorized DBS catalog.");
+    const dbsBookId = DBS_BOOK_IDS[reference.bookId];
+    if (!dbsBookId) throw new Error(`${reference.bookName} is not mapped to the DBS scripture service.`);
     const segments = passageSegments(reference, translation.canon);
     const chapters = new Map<number, Map<number, string>>();
     const selected: string[] = [];
@@ -188,9 +205,9 @@ export class DbsScriptureProvider implements ScriptureProvider {
       if (signal?.aborted) throw new DOMException("Passage request cancelled.", "AbortError");
       let chapter = chapters.get(segment.chapter);
       if (!chapter) {
-        const response = await this.transport.getChapter(translationId, reference.bookId, segment.chapter, signal);
+        const response = await this.transport.getChapter(translationId, dbsBookId, segment.chapter, signal);
         if (signal?.aborted) throw new DOMException("Passage request cancelled.", "AbortError");
-        chapter = parseDbsChapter(response.body, segment.chapter);
+        chapter = parseDbsChapter(response.body, segment.chapter, dbsBookId);
         chapters.set(segment.chapter, chapter);
         cached = cached && Boolean(response.cached);
       }

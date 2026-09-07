@@ -499,7 +499,7 @@ mod tests {
         let catalog = get_catalog(&client, directory.path()).expect("live DBS catalog");
         assert!(valid_catalog(&catalog.body));
         let chapter =
-            get_chapter(&client, directory.path(), "ENGWEB", "JHN", 3).expect("live DBS chapter");
+            get_chapter(&client, directory.path(), "ENGWEB", "JN", 3).expect("live DBS chapter");
         assert!(valid_chapter(&chapter.body, 3));
     }
 }

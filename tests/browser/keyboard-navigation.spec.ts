@@ -23,7 +23,7 @@ test("keyboard-only writing reaches references, menus, translation, and returns 
 
   await page.keyboard.press("F6");
   await expect(valid).toBeFocused();
-  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 16 for JHN");
+  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 16 for JN");
   await page.keyboard.press("Enter");
   await expect(page.locator(".scripture-citation")).toHaveText("(John 3:16, NASB)");
   await expect(editor).toBeFocused();

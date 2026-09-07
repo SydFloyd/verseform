@@ -28,7 +28,7 @@ test("selects and remembers a DBS translation, caches its chapter, and preserves
   await editor.click();
   await page.keyboard.type("John 3:16 ");
   await page.locator(".scripture-reference").hover();
-  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 16 for JHN");
+  await expect(page.getByRole("tooltip")).toContainText("DBS test verse 16 for JN");
   await expect(page.getByRole("tooltip")).toContainText("DBS Test Bible");
   await page.locator(".scripture-reference").click();
   const citation = page.locator(".scripture-citation");
